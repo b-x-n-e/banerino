@@ -65,8 +65,6 @@ enum class MessageFlag : std::int64_t {
     ///  - forsen added "blockedterm" as a blocked term
     ///  - Your message is being checked by mods and has not been sent
     ModerationAction = (1LL << 41),
-
-    WebchatDetected = (1LL << 63),
 };
 using MessageFlags = FlagsEnum<MessageFlag>;
 

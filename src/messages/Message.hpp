@@ -63,8 +63,21 @@ struct Message {
     // The root of the thread does not have replyThread set.
     std::shared_ptr<MessageThread> replyThread;
     MessagePtr replyParent;
+    enum class ClientDetectionStatus : std::uint8_t {
+        // No client-nonce
+        Unknown = 0,
+        // [0-9a-f]{32}, not really a uuid
+        Webchat,
+        // UUID4 (standard) lowercase
+        Android,
+        // UUID4 (standard) uppercase
+        IOS,
+        // Does not match any of the known clients
+        Abnormal,
+    };
     uint32_t count = 1;
     std::vector<std::unique_ptr<MessageElement>> elements;
+    ClientDetectionStatus clientDetection = ClientDetectionStatus::Unknown;
 
     ScrollbarHighlight getScrollBarHighlight() const;
 

@@ -637,6 +637,8 @@ public:
     BoolSetting normalNonceDetection = {"/misc/normalNonceDetection", false};
     BoolSetting nonceFuckeryEnabled = {"/misc/nonceFuckeryEnabled", false};
     QStringSetting webchatColor = {"/misc/webchatColor", "#3FFFA30B"};
+    QStringSetting androidColor = {"/misc/androidColor", "#3F25D300"};
+    QStringSetting iosColor = {"/misc/iosColor", "#3FFF69B4"};
     BoolSetting fakeWebChat = {"/misc/fakeWebChat", false};
 #ifdef Q_OS_LINUX
     BoolSetting useKeyring = {"/misc/useKeyring", true};
