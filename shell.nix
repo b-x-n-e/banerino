@@ -5,11 +5,14 @@ let
   project = import ./. { inherit pkgs; };
 in
 pkgs.mkShell {
-  buildInputs = [
-    pkgs.ninja
-  ]
-  ++ project.buildInputs
-  ++ project.nativeBuildInputs;
+  buildInputs =
+    with pkgs;
+    [
+      ninja
+      llvmPackages_19.clang-tools
+    ]
+    ++ project.buildInputs
+    ++ project.nativeBuildInputs;
 
   shellHook = ''
     export NIX_BUILD_TOP="$PWD/build"

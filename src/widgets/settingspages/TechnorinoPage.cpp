@@ -137,12 +137,12 @@ void TechnorinoPage::initLayout(GeneralPageView &layout)
                             s.abnormalNonceDetection)
         ->setTooltip("Abnormal nonce detection")
         ->addTo(layout);
-    
+
     layout.addTitle("Client detection");
     SettingWidget::checkbox("Client detection highlights. ",
-                                s.normalNonceDetection)
+                            s.normalNonceDetection)
         ->setTooltip("Highlights messages sent from specified clients "
-                        "using the specified color below.")
+                     "using the specified color below.")
         ->addTo(layout);
     SettingWidget::colorButton("Webchat color", getSettings()->webchatColor)
         ->addTo(layout);
