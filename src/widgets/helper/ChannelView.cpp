@@ -132,7 +132,7 @@ void addEmoteContextMenuItems(QMenu *menu, const Emote &emote,
 
     if (creatorFlags.has(MessageElementFlag::TwitchEmote))
     {
-        addPageLink("RaccAttack");
+        addPageLink("Chat Vault");
     }
     else if (creatorFlags.has(MessageElementFlag::BttvEmote))
     {

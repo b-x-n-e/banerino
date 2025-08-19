@@ -323,11 +323,11 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                             crossPlatformCopy(avatarUrl);
                         });
 
-                        //RaccAttack profile
+                        //Chat Vault profile
                         menu->addAction(
-                            "Open RaccAttack profile in browser", [username] {
+                            "Open Chat Vault profile in browser", [username] {
                                 QDesktopServices::openUrl(
-                                    QUrl("https://emotes.awoo.nl/twitch/" +
+                                    QUrl("https://chatvau.lt/channel/twitch/" +
                                          username));
                             });
 
