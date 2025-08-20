@@ -15,7 +15,7 @@ pkgs.mkShell {
     ++ project.nativeBuildInputs;
 
   shellHook = ''
-    export NIX_BUILD_TOP="$PWD/build"
+    export NIX_BUILD_TOP="$PWD/build-dev"
     alias configure="cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DBUILD_WITH_QT6=1 -DBUILD_TESTS=1 -G Ninja .."
     mkdir -p "$NIX_BUILD_TOP"
     cd $NIX_BUILD_TOP
