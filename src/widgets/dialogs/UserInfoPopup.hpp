@@ -29,6 +29,7 @@ class Split;
 struct HelixUser;
 class LabelButton;
 class PixmapButton;
+class LiveIndicator;
 
 class UserInfoPopup final : public DraggablePopup
 {
@@ -109,6 +110,8 @@ private:
         Label *followageLabel = nullptr;
         Label *subageLabel = nullptr;
         Label *rolesLabel = nullptr;
+
+        LiveIndicator *liveIndicator = nullptr;
 
         QCheckBox *block = nullptr;
         QCheckBox *ignoreHighlights = nullptr;

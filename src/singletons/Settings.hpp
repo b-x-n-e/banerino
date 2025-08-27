@@ -293,6 +293,11 @@ public:
         false,
     };
 
+    BoolSetting pulseTextInputOnSelfMessage = {
+        "/appearance/pulseTextInputOnSelfMessage",
+        false,
+    };
+
     /// Behaviour
     BoolSetting allowDuplicateMessages = {"/behaviour/allowDuplicateMessages",
                                           true};
