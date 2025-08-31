@@ -2,6 +2,8 @@
 
 ## Unversioned
 
+## 2.5.4-beta.1
+
 - Minor: Added `Open in custom player` to `twitch.tv/<channel>` link context menus. (#6403)
 - Minor: Added user notes to the user info dialog (when clicking a username). (#6122, #6318)
 - Minor: Added cached emotes fallback when fetching from a provider fails. (#6125, #6229)
@@ -20,7 +22,7 @@
 - Minor: Made commands searchable using the Settings dialog search bar. (#5891)
 - Minor: Added hotkey Action for opening account selector. (#6192)
 - Minor: Add a setting to change the emote and badge thumbnail size. (#6126)
-- Minor: Add an import and export button to image uploader settings. (#6284, #6394)
+- Minor: Add an import and export button to image uploader settings. (#6284, #6394, #6387)
 - Minor: Message character length label is now monospaced. (#6366)
 - Minor: Add a setting under Moderation -> Logs to customize the timestamp used for chat logs. (#6338)
 - Minor: Add a setting under Moderation -> Logs to use server timestamp from the message instead of the local clock time for logging. (#6346)
@@ -117,6 +119,7 @@
 - Dev: Added an explicit `frozen` flag to `Message`. (#6367)
 - Dev: Stop sending `JOIN`/`PART` commands for channels starting with `/`. (#6376)
 - Dev: Error handlers for Sol check functions now take a function reference over an owning type. (#6393)
+- Dev: Fix macOS CI build issues. (#6430)
 
 ## 2.5.3
 
