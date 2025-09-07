@@ -185,7 +185,7 @@ jobs:
           path: ~/.conan2/
 
       - name: Setup Python (Windows)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         if: startsWith(matrix.os, 'windows')
         with:
           python-version: "3.13"
@@ -280,7 +280,7 @@ jobs:
           # binary dependencies
           ./.CI/SetupHomebrewDeps.sh boost openssl
           # build and header-only dependencies
-          brew install rapidjson p7zip create-dmg cmake tree
+          brew install rapidjson p7zip create-dmg tree
         shell: bash
 
       - name: Build (MacOS)
@@ -418,7 +418,7 @@ jobs:
         shell: bash
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
