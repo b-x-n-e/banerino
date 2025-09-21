@@ -1,5 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
+  gitHash ? "",
 }:
 
 let
@@ -14,6 +15,16 @@ in
       pname = "technorino";
       version = "unstable";
 
-      src = ./.;
+      src = pkgs.nix-gitignore.gitignoreSourcePure [
+        "*build-*/"
+        "result"
+        "*-source/"
+        ".git"
+      ] ./.;
+
+      preConfigure = ''
+        export GIT_HASH="${builtins.substring 0 9 gitHash}"
+        echo GIT_HASH=$GIT_HASH
+      '';
     }
   )
