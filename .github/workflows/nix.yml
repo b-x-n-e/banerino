@@ -32,7 +32,7 @@ jobs:
           nix_path: nixpkgs=https://github.com/NixOS/nixpkgs/archive/${{ env.NIX_PKGS_REF }}.tar.gz
 
       - name: Build
-        run: nix-build package.nix
+        run: nix build .#package -L
 
       - name: Install Attic Client
         run: nix profile install --inputs-from https://github.com/NixOS/nixpkgs/archive/$NIX_PKGS_REF.tar.gz nixpkgs#attic-client

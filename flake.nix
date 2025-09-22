@@ -16,15 +16,19 @@
         "x86_64-linux"
         "aarch64-linux"
       ];
-      mkDefault =
-        path:
-        nixpkgs.lib.genAttrs supportedSystems (system: {
-          default = import path { inherit (nixpkgs.legacyPackages.${system}) pkgs; };
-        });
-    in
 
+      mkPackages = nixpkgs.lib.genAttrs supportedSystems (system: {
+        default = import ./. { inherit (nixpkgs.legacyPackages.${system}) pkgs; };
+        package = import ./package.nix { inherit (nixpkgs.legacyPackages.${system}) pkgs; };
+      });
+
+      mkShells = nixpkgs.lib.genAttrs supportedSystems (system: {
+        default = import ./shell.nix { inherit (nixpkgs.legacyPackages.${system}) pkgs; };
+      });
+
+    in
     {
-      packages = mkDefault ./.;
-      devShells = mkDefault ./shell.nix;
+      packages = mkPackages;
+      devShells = mkShells;
     };
 }
