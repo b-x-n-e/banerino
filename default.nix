@@ -26,5 +26,9 @@ in
         export GIT_HASH="${builtins.substring 0 9 gitHash}"
         echo GIT_HASH=$GIT_HASH
       '';
+
+      postInstall = ''
+        echo "nightly" > $out/bin/modes
+      '';
     }
   )
