@@ -3,12 +3,12 @@
 }:
 
 let
-  gitHash = "48a390d62bf1c7d6815976342530c6a9df13206f";
+  gitHash = "22a166de9cfb3ca53e2d18b29aac35dcf7b04855";
   repo = pkgs.fetchFromGitHub {
     owner = "2547techno";
     repo = "technorino";
     rev = gitHash;
-    hash = "sha256-ix/Ba4Qxjh/7lDcznE4t3rdzuJoDsAoW4S4gnvZEbCo=";
+    hash = "sha256-FDQ2Nws5yF17Nviizg10nsHYBrwJY4jEABhVFkkMAtY=";
     fetchSubmodules = true;
   };
   technorino = import "${repo}/default.nix" { inherit pkgs gitHash; };
