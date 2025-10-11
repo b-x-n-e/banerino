@@ -2,7 +2,7 @@
 
 #include "messages/ast/Lexer.hpp"
 
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QString>
 
 #include <variant>
@@ -51,7 +51,7 @@ QVector<ASTNode> createTextNodes(const QString &str, bool normalize = false);
 
 MatchResponse matchAny(int i, QVector<Token> tokens, bool ignoreTick = false);
 MatchResponse matchChar(int i, QVector<Token> tokens);
-const QRegExp BOUNDRY_CHAR_REGEX("[^\\s]");
+const QRegularExpression BOUNDRY_CHAR_REGEX("[^\\s]");
 MatchResponse matchBoundryChar(int i, QVector<Token> *tokens);
 
 QVector<ASTNode> getBoundryStyleAstNode(BoundryStyleToken tokenType,

@@ -328,6 +328,13 @@ public:
         true,
     };
 
+    /// The maximum length the contents of a deleted message can be
+    /// before we truncate it in the chat
+    IntSetting deletedMessageLengthLimit = {
+        "/behaviour/deletedMessageLengthLimit",
+        50,
+    };
+
     // Auto-completion
     BoolSetting onlyFetchChattersForSmallerStreamers = {
         "/behaviour/autocompletion/onlyFetchChattersForSmallerStreamers", true};
@@ -775,6 +782,8 @@ public:
     };
 
     QStringSetting additionalExtensionIDs{"/misc/additionalExtensionIDs", ""};
+
+    BoolSetting xChatterino7NoHttp2{"/x-chatterino7/no-http2", false};
 
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =

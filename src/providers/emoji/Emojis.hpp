@@ -58,7 +58,6 @@ public:
 class Emojis : public IEmojis
 {
 public:
-    void initialize();
     void load();
     std::vector<boost::variant<EmotePtr, QString>> parse(
         const QString &text) const override;
@@ -77,7 +76,7 @@ private:
     std::vector<EmojiPtr> emojis;
 
     /// Emojis
-    QRegularExpression findShortCodesRegex_{":([-+\\w]+):"};
+    QRegularExpression findShortCodesRegex_{R"((?<!\w):(?:[-+\w]+):(?!\w))"};
 
     // shortCodeToEmoji maps strings like "sunglasses" to its emoji
     QMap<QString, std::shared_ptr<EmojiData>> emojiShortCodeToEmoji_;

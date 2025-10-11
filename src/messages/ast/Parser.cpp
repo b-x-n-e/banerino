@@ -3,6 +3,7 @@
 #include "messages/ast/Lexer.hpp"
 #include "util/Variant.hpp"
 
+#include <QRegularExpressionMatch>
 #include <variant>
 
 namespace chatterino::ast {
@@ -111,8 +112,8 @@ MatchResponse matchBoundryChar(int i, QVector<Token> *tokens)
 
     CharToken charToken = std::get<CharToken>(token);
 
-    int matched = BOUNDRY_CHAR_REGEX.indexIn(charToken.data);
-    if (matched >= 0)
+    QRegularExpressionMatch match = BOUNDRY_CHAR_REGEX.match(charToken.data);
+    if (match.hasMatch())
     {
         return MatchResponse({true, createTextNodes(charToken.data), i + 1});
     }
