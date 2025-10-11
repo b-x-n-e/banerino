@@ -11,6 +11,7 @@ pkgs.mkShell {
   buildInputs = with pkgs; [
     ninja
     llvmPackages_19.clang-tools
+    doxygen
   ];
 
   shellHook = ''
