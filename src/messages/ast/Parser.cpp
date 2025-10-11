@@ -4,6 +4,7 @@
 #include "util/Variant.hpp"
 
 #include <QRegularExpressionMatch>
+
 #include <variant>
 
 namespace chatterino::ast {
