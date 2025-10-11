@@ -3,7 +3,7 @@
 
   inputs = {
     self.submodules = true;
-    nixpkgs.url = "github:NixOS/nixpkgs?rev=bcffac3ac504dc0ad80070251a9a5aae2d4ab339";
+    nixpkgs.url = "github:NixOS/nixpkgs?rev=d2ed99647a4b195f0bcc440f76edfa10aeb3b743";
   };
 
   outputs =
