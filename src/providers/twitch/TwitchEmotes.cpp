@@ -469,8 +469,8 @@ EmotePtr TwitchEmotes::getOrCreateEmote(const EmoteId &id,
                                    baseSize * (1.0 / emote3xScaleFactor)),
                 },
             .tooltip = Tooltip{name.toHtmlEscaped() + "<br>Twitch Emote"},
-            .homePage = Url{QString("https://chatvau.lt/emote/twitch/%1").arg(id.string)}
-        });
+            .homePage = Url{
+                QString("https://chatvau.lt/emote/twitch/%1").arg(id.string)}});
     }
 
     return shared;
