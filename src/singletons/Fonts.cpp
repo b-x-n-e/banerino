@@ -264,6 +264,9 @@ Fonts::FontData Fonts::createFontData(FontStyle type, float scale)
 #endif
         }
         break;
+
+        default:
+            break;
     }
 
     return font;
