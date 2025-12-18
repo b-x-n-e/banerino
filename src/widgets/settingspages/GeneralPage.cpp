@@ -658,6 +658,14 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         s.enableBTTVLiveUpdates)
         ->addKeywords({"bttv"})
         ->addTo(layout);
+    SettingWidget::checkbox("Send activity to BetterTTV", s.sendBTTVActivity)
+        ->setTooltip(
+            "When enabled, Chatterino will signal an activity to BetterTTV "
+            "when you send a chat message. This is used for badges, "
+            " and personal emotes. When disabled, no activity "
+            "is sent and others won't see your cosmetics.")
+        ->addKeywords({"bttv"})
+        ->addTo(layout);
 
     SettingWidget::checkbox("Show FrankerFaceZ global emotes",
                             s.enableFFZGlobalEmotes)
@@ -1113,6 +1121,9 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         ->addKeywords({"seventv"})
         ->setTooltip("Badges for 7TV admins, developers, and supporters")
         ->addTo(layout);
+    SettingWidget::checkbox("BetterTTV", s.showBadgesBttv)
+        ->addKeywords({"bttv"})
+        ->addTo(layout);
     layout.addSeparator();
     SettingWidget::checkbox("Use custom FrankerFaceZ moderator badges",
                             s.useCustomFfzModeratorBadges)
@@ -1307,6 +1318,13 @@ void GeneralPage::initLayout(GeneralPageView &layout)
     SettingWidget::checkbox("Show user's pronouns in user card", s.showPronouns)
         ->setDescription(
             R"(Pronouns are retrieved from <a href="https://pr.alejo.io">pr.alejo.io</a> when a user card is opened.)")
+        ->addTo(layout);
+
+    SettingWidget::checkbox("Show stream title in live message",
+                            s.showTitleInLiveMessage)
+        ->setTooltip("The title in the message will be the title the streamer "
+                     "set when they went live, and will not update as the "
+                     "streamer updates their title.")
         ->addTo(layout);
 
     SettingWidget::checkbox("Bold @usernames", s.boldUsernames)
