@@ -23,6 +23,7 @@ public:
             settingsFile.flush();
             settingsFile.close();
         }
+        this->paths_.settingsDirectory = this->settingsDir.path();
     }
 
     ~EmptyApplication() override = default;
@@ -160,6 +161,12 @@ public:
     {
         assert(false && "EmptyApplication::getFfzBadges was called without "
                         "being initialized");
+        return nullptr;
+    }
+
+    BttvBadges *getBttvBadges() override
+    {
+        assert(!"getBttvBadges was called without being initialized");
         return nullptr;
     }
 
