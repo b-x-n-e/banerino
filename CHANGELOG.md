@@ -23,6 +23,7 @@
 - Minor: Added broadcaster-only `/prediction`, `/cancelprediction`, `/lockprediction`, and `/completeprediction` commands. (#6583, #6612, #6632)
 - Minor: Added support for BetterTTV Pro subscriber badges. (#6625)
 - Bugfix: Moderation checks now include the lead moderator badge. (#6642)
+- Bugfix: Fixed lead moderator badges not being filtered by the `Channel` badge setting. (#6665)
 - Bugfix: Expose the "Extra extension IDs" setting on non-Windows systems too. (#6509)
 - Bugfix: Fixed some commands and filters not working as expected in seach popups. (#6539)
 - Bugfix: Fixed settings occasionally not opening when clicking on "Manage Accounts" in the account switcher. (#6543)
@@ -50,6 +51,7 @@
 - Dev: Refactored `Emotes` into `EmoteController`. (#6516)
 - Dev: Fix Arch Linux partial upgrade error in CI. (#6553)
 - Dev: Added Qt keyword and warning flags project wide. (#6520)
+- Dev: Added REUSE license checking. (#6659)
 - Def: Fixed compilation error in tests with Clang 21. (#6519)
 - Dev: The 7TV and BTTV liveupdates now use Boost.Beast's WebSockets. (#6308)
 - Dev: Fixed compilation warnings on clang-cl. (#6528)
@@ -69,6 +71,7 @@
 - Dev: Disabled `llvm-prefer-static-over-anonymous-namespace` in clang-tidy. (#6610)
 - Dev: Added Clazy linting in CI. (#6623)
 - Dev: Added custom clang-tidy module linting in CI. (#6626)
+- Dev: Moved Twitch PubSub to liveupdates. (#6638)
 
 ## 2.5.4
 
