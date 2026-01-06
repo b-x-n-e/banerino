@@ -141,8 +141,7 @@ public:
     std::weak_ptr<const Message> weakOf();
 
     void append(std::unique_ptr<MessageElement> element);
-
-    void addLink(const linkparser::Parsed &parsedLink, const QString &source,
+    void addLink(const linkparser::Parsed &parsedLink, QStringView source,
                  const QString &textOverride = QString());
 
     template <typename T, typename... Args>
