@@ -2624,7 +2624,8 @@ void MessageBuilder::addWords(
                                    this->addEmoji(emote);
                                },
                                [&](QStringView text) {
-                                   this->addTextOrEmote(state, text.toString(), style);
+                                   this->addTextOrEmote(state, text.toString(),
+                                                        style);
                                },
                            },
                            variant);
@@ -2648,7 +2649,8 @@ void MessageBuilder::addWords(
                                this->addEmoji(emote);
                            },
                            [&](QStringView text) {
-                               this->addTextOrEmote(state, text.toString(), style);
+                               this->addTextOrEmote(state, text.toString(),
+                                                    style);
                            },
                        },
                        variant);
