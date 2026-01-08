@@ -26,9 +26,15 @@ in
         ".git"
       ] ./.;
 
+      patches = [
+        ./.patches/nix-cmake-date.patch
+      ];
+
       preConfigure = ''
         export GIT_HASH="${builtins.substring 0 9 gitHash}"
+        export GEN_DATE=$(date -I)
         echo GIT_HASH=$GIT_HASH
+        echo GEN_DATE=$GEN_DATE
       '';
 
       cmakeFlags = prev.cmakeFlags ++ [
