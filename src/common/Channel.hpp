@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2017 Contributors to Chatterino <https://chatterino.com>
+//
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include "common/enums/MessageContext.hpp"
@@ -19,6 +23,8 @@ namespace chatterino {
 
 struct Message;
 using MessagePtr = std::shared_ptr<const Message>;
+
+class EmoteMap;
 
 class Channel : public std::enable_shared_from_this<Channel>, public MessageSink
 {
@@ -48,6 +54,7 @@ public:
         TwitchAutomod,
         /// TwitchEnd
         TwitchEnd,
+        Kick,
         /// Misc
         Misc,
     };
@@ -140,6 +147,11 @@ public:
 
     static std::shared_ptr<Channel> getEmpty();
     static bool isValidChannelName(QString channelName);
+
+    /// Update the user's last message and insert the personal emotes if necessary.
+    void upsertPersonalSeventvEmotes(
+        const QString &userLogin,
+        const std::shared_ptr<const EmoteMap> &emoteMap);
 
     TabCompletionModel *completionModel;
     QDate lastDate_;

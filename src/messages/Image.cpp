@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2017 Contributors to Chatterino <https://chatterino.com>
+//
+// SPDX-License-Identifier: MIT
+
 #include "messages/Image.hpp"
 
 #include "Application.hpp"
@@ -21,6 +25,7 @@
 #include <QNetworkRequest>
 #include <QTimer>
 
+#include <algorithm>
 #include <atomic>
 
 // Duration between each check of every Image instance
@@ -241,6 +246,19 @@ void assignFrames(std::weak_ptr<Image> weak, QList<Frame> parsed)
             return;
         }
         shared->frames_ = std::make_unique<detail::Frames>(std::move(parsed));
+        if (shared->autoScale_)
+        {
+            // FIXME: We should actually scale the pixmaps. However, we'd also
+            //        need to cache that.
+            auto firstFrame = shared->frames_->first();
+            if (firstFrame)
+            {
+                auto actualSize = firstFrame->size();
+                shared->scale_ =
+                    static_cast<qreal>(*shared->autoScale_) /
+                    std::max({actualSize.width(), actualSize.height(), 1});
+            }
+        }
 
         // Avoid too many layouts in one event-loop iteration
         //
@@ -321,6 +339,14 @@ ImagePtr Image::fromUrl(const Url &url, qreal scale, QSize expectedSize)
     {
         cache[url] = shared = ImagePtr(new Image(url, scale, expectedSize));
     }
+
+    return shared;
+}
+
+ImagePtr Image::fromAutoscaledUrl(const Url &url, uint16_t autoScale)
+{
+    auto shared = Image::fromUrl(url, 1.0, {autoScale, autoScale});
+    shared->autoScale_ = autoScale;
 
     return shared;
 }

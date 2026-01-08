@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2017 Contributors to Chatterino <https://chatterino.com>
+//
+// SPDX-License-Identifier: MIT
+
 #include "messages/MessageBuilder.hpp"
 
 #include "Application.hpp"
@@ -1943,7 +1947,13 @@ void MessageBuilder::addTextOrEmote(TextState &state, QString string,
         // Successfully appended an emote
         return;
     }
+    this->addWordFromUserMessage(string, state.twitchChannel, style);
+}
 
+void MessageBuilder::addWordFromUserMessage(QStringView string,
+                                            ChannelChatters *chatters,
+                                            FontStyle style)
+{
     // Actually just text
     auto link = linkparser::parse(string);
     auto textColor = this->textColor_;
@@ -1963,10 +1973,9 @@ void MessageBuilder::addTextOrEmote(TextState &state, QString string,
             QString username = match.captured(1);
             auto originalTextColor = textColor;
 
-            if (state.twitchChannel != nullptr)
+            if (chatters != nullptr)
             {
-                if (auto userColor =
-                        state.twitchChannel->getUserColor(username);
+                if (auto userColor = chatters->getUserColor(username);
                     userColor.isValid())
                 {
                     textColor = userColor;
@@ -1974,14 +1983,15 @@ void MessageBuilder::addTextOrEmote(TextState &state, QString string,
             }
 
             auto prefixedUsername = '@' + username;
-            auto remainder = string.remove(prefixedUsername);
+            auto remainder = string.sliced(prefixedUsername.size());
             this->emplace<MentionElement>(prefixedUsername, username,
                                           originalTextColor, textColor)
                 ->setTrailingSpace(remainder.isEmpty());
 
             if (!remainder.isEmpty())
             {
-                this->emplace<TextElement>(remainder, MessageElementFlag::Text,
+                this->emplace<TextElement>(remainder.toString(),
+                                           MessageElementFlag::Text,
                                            originalTextColor);
             }
 
@@ -1991,42 +2001,43 @@ void MessageBuilder::addTextOrEmote(TextState &state, QString string,
     else if (getSettings()->channelLinks && string.startsWith('#') &&
              string.size() > 1)
     {
-        QString channelName = string.sliced(1).toLower();
+        QString channelName = string.sliced(1).toString().toLower();
 
         if (Channel::isValidChannelName(channelName))
         {
             Link link(Link::JumpToOrCreateChannel, channelName);
-            this->emplace<TextElement>(string, MessageElementFlag::Text,
+            this->emplace<TextElement>(string.toString(),
+                                       MessageElementFlag::Text,
                                        MessageColor::Link)
                 ->setLink(link);
             return;
         }
     }
 
-    if (state.twitchChannel != nullptr && getSettings()->findAllUsernames)
+    if (chatters != nullptr && getSettings()->findAllUsernames)
     {
         auto match = allUsernamesMentionRegex.match(string);
         QString username = match.captured(1);
 
-        if (match.hasMatch() &&
-            state.twitchChannel->accessChatters()->contains(username))
+        if (match.hasMatch() && chatters->accessChatters()->contains(username))
         {
             auto originalTextColor = textColor;
 
-            if (auto userColor = state.twitchChannel->getUserColor(username);
+            if (auto userColor = chatters->getUserColor(username);
                 userColor.isValid())
             {
                 textColor = userColor;
             }
 
-            auto remainder = string.remove(username);
+            auto remainder = string.sliced(username.size());
             this->emplace<MentionElement>(username, username, originalTextColor,
                                           textColor)
                 ->setTrailingSpace(remainder.isEmpty());
 
             if (!remainder.isEmpty())
             {
-                this->emplace<TextElement>(remainder, MessageElementFlag::Text,
+                this->emplace<TextElement>(remainder.toString(),
+                                           MessageElementFlag::Text,
                                            originalTextColor);
             }
 
@@ -2034,7 +2045,7 @@ void MessageBuilder::addTextOrEmote(TextState &state, QString string,
         }
     }
 
-    this->appendOrEmplaceText(string, textColor, style);
+    this->appendOrEmplaceText(string.toString(), textColor, style);
 }
 
 bool MessageBuilder::isEmpty() const
@@ -2447,6 +2458,12 @@ Outcome MessageBuilder::tryAppendEmote(TwitchChannel *twitchChannel,
         return Failure;
     }
 
+    this->appendEmote(emote);
+    return Success;
+}
+
+void MessageBuilder::appendEmote(const EmotePtr &emote)
+{
     if (emote->zeroWidth && getSettings()->enableZeroWidthEmotes &&
         !this->isEmpty())
     {
@@ -2467,7 +2484,7 @@ Outcome MessageBuilder::tryAppendEmote(TwitchChannel *twitchChannel,
                 std::move(layers),
                 baseEmoteElement->getFlags() | MessageElementFlag::Emote,
                 this->textColor_);
-            return Success;
+            return;
         }
 
         auto *asLayered = dynamic_cast<LayeredEmoteElement *>(&this->back());
@@ -2475,7 +2492,7 @@ Outcome MessageBuilder::tryAppendEmote(TwitchChannel *twitchChannel,
         {
             asLayered->addEmoteLayer({emote, MessageElementFlag::Emote});
             asLayered->addFlags(MessageElementFlag::Emote);
-            return Success;
+            return;
         }
 
         // No emote to merge with, just show as regular emote
@@ -2483,7 +2500,6 @@ Outcome MessageBuilder::tryAppendEmote(TwitchChannel *twitchChannel,
 
     this->emplace<EmoteElement>(emote, MessageElementFlag::Emote,
                                 this->textColor_);
-    return Success;
 }
 
 void MessageBuilder::addWordsFromAstNodes(
@@ -2624,7 +2640,8 @@ void MessageBuilder::addWords(
                                    this->addEmoji(emote);
                                },
                                [&](QStringView text) {
-                                   this->addTextOrEmote(state, text.toString(), style);
+                                   this->addTextOrEmote(state, text.toString(),
+                                                        style);
                                },
                            },
                            variant);
@@ -2648,7 +2665,8 @@ void MessageBuilder::addWords(
                                this->addEmoji(emote);
                            },
                            [&](QStringView text) {
-                               this->addTextOrEmote(state, text.toString(), style);
+                               this->addTextOrEmote(state, text.toString(),
+                                                    style);
                            },
                        },
                        variant);
@@ -2867,6 +2885,11 @@ Outcome MessageBuilder::tryAppendCheermote(TextState &state,
     }
 
     return Success;
+}
+
+MessageColor MessageBuilder::textColor() const
+{
+    return this->textColor_;
 }
 
 }  // namespace chatterino
