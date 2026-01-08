@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2017 Contributors to Chatterino <https://chatterino.com>
+//
+// SPDX-License-Identifier: MIT
+
 #include "Application.hpp"
 
 #include "common/Args.hpp"
@@ -16,6 +20,7 @@
 #include "providers/bttv/BttvBadges.hpp"
 #include "providers/bttv/BttvEmotes.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
+#include "providers/kick/KickChatServer.hpp"
 #include "providers/links/LinkResolver.hpp"
 #include "providers/pronouns/Pronouns.hpp"
 #include "providers/seventv/SeventvAPI.hpp"
@@ -208,6 +213,7 @@ Application::Application(Settings &_settings, const Paths &paths,
     , twitchUsers(new TwitchUsers)
     , pronouns(new pronouns::Pronouns)
     , spellChecker(new SpellChecker)
+    , kickChatServer(new KickChatServer)
 #ifdef CHATTERINO_HAVE_PLUGINS
     , plugins(new PluginController(paths))
 #endif
@@ -296,6 +302,7 @@ void Application::initialize(Settings &settings, const Paths &paths)
     this->seventvEmotes->loadGlobalEmotes();
 
     this->twitch->initialize();
+    this->kickChatServer->initialize();
 
     // Load live status
     this->notifications->initialize();
@@ -677,6 +684,14 @@ SpellChecker *Application::getSpellChecker()
     assert(this->spellChecker);
 
     return this->spellChecker.get();
+}
+
+KickChatServer *Application::getKickChatServer()
+{
+    assertInGuiThread();
+    assert(this->kickChatServer);
+
+    return this->kickChatServer.get();
 }
 
 void Application::aboutToQuit()
