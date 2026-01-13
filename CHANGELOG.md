@@ -38,6 +38,7 @@
 - Bugfix: Forward query params to websocket URLs. (#6141)
 - Bugfix: Fixed Lua errors from handlers of HTTP requests not being logged. (#6452)
 - Bugfix: Fixed restore button not showing on Windows. (#6565)
+- Bugfix: Fixed custom player URIs for external players not always working due to URL percent-encoding. (#6725)
 - Bugfix: Fixed a crash that could occur when network requests were loading/saving cache as Chatterino was being shut down. (#6698)
 - Bugfix: Fixed popups and the overlay not being draggable on Wayland. (#6573)
 - Bugfix: Fixed middle-clicking usernames in a local channel opening an invalid viewercard. (#6577)
@@ -45,6 +46,8 @@
 - Bugfix: Fixed <kbd>CMD</kbd> + <kbd>DELETE</kbd> behavior in the user notes editing dialog for macOS. (#6676)
 - Bugfix: Fixed a potential crash when closing Chatterino with a slow network connection. (#6645)
 - Bugfix: Disable "Sort Tabs Alphabetically" action when notebook layout is locked. (#6710)
+- Bugfix: Fix highlight mentions not updating when username changes. (#6723)
+- Bugfix: Fixed Return and Enter being treated as different keys on Mac OS. (#6726)
 - Dev: Update release documentation. (#6498)
 - Dev: Make code sanitizers opt in with the `CHATTERINO_SANITIZER_SUPPORT` CMake option. After that's enabled, use the `SANITIZE_*` flag to enable individual sanitizers. (#6493)
 - Dev: Remove unused QTextCodec includes. (#6487)
@@ -78,7 +81,7 @@
 - Dev: Unwrapped `LimitedQueueSnapshot` to `std::vector`. (#6606)
 - Dev: Simplified uses of `getMessageSnapshot`. (#6607)
 - Dev: Disabled `llvm-prefer-static-over-anonymous-namespace` in clang-tidy. (#6610)
-- Dev: Added experimental spell checker support. (#6446, #6703, #6722)
+- Dev: Added experimental spell checker support. (#6446, #6703, #6722, #6730, #6731)
 - Dev: Added Clazy linting in CI. (#6623)
 - Dev: Added custom clang-tidy module linting in CI. (#6626)
 - Dev: CMake option `USE_ALTERNATE_LINKER` now errors if the given linker can't be found. (#6692)
@@ -87,6 +90,7 @@
 - Dev: Moved Twitch PubSub to liveupdates. (#6638)
 - Dev: Refactored types used for emoji parsing. (#6714)
 - Dev: `LinkParser` now parses `QStringView`s. (#6715)
+- Dev: Cleaned up `AccountController` connections. (#6735)
 
 ## 2.5.4
 
