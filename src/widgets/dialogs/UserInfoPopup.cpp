@@ -383,15 +383,6 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                             });
                         menu->popup(QCursor::pos());
                         menu->raise();
-
-                        // Logs site
-                        menu->addAction(
-                            "Open logs site in browser", [loginName, this] {
-                                QDesktopServices::openUrl(
-                                    QUrl(u"https://tv.supa.sh/logs?c=" %
-                                         this->underlyingChannel_->getName() %
-                                         u"&u=" % loginName));
-                            });
                     }
                     break;
 
@@ -503,6 +494,9 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
         auto usercard = user.emplace<LabelButton>("Usercard", this)
                             .assign(&this->ui_.usercardLabel);
 
+        auto userlogs = user.emplace<LabelButton>("Logs", this)
+                            .assign(&this->ui_.userlogsLabel);
+
         auto stvUser = user.emplace<LabelButton>("7tv User Page", this)
                            .assign(&this->ui_.stvUser);
 
@@ -527,6 +521,12 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
             QDesktopServices::openUrl("https://www.twitch.tv/popout/" +
                                       this->underlyingChannel_->getName() +
                                       "/viewercard/" + this->userName_);
+        });
+
+        QObject::connect(userlogs.getElement(), &Button::leftClicked, [this] {
+            QDesktopServices::openUrl("https://tv.supa.sh/logs?c=" +
+                                      this->underlyingChannel_->getName() +
+                                      "&u=" + this->userName_);
         });
 
         QObject::connect(stvUser.getElement(), &Button::leftClicked, [this] {

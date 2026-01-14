@@ -132,6 +132,7 @@ private:
         LabelButton *stvUser = nullptr;
         LabelButton *usercardLabel = nullptr;
         LabelButton *switchAvatars = nullptr;
+        LabelButton *userlogsLabel = nullptr;
     } ui_;
 
     QMovie *seventvAvatar_ = nullptr;
