@@ -86,6 +86,8 @@ public:
     virtual const QString &getLocalizedName() const;
     bool isTwitchChannel() const;
     bool isWatching() const;
+    bool isKickChannel() const;
+    bool isTwitchOrKickChannel() const;
     virtual bool isEmpty() const;
 
     std::vector<MessagePtr> getMessageSnapshot() const;

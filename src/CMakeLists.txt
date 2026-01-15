@@ -397,6 +397,10 @@ set(SOURCE_FILES
         providers/irc/IrcConnection2.cpp
         providers/irc/IrcConnection2.hpp
 
+        providers/kick/KickAccount.cpp
+        providers/kick/KickAccount.hpp
+        providers/kick/KickAccountManager.cpp
+        providers/kick/KickAccountManager.hpp
         providers/kick/KickApi.cpp
         providers/kick/KickApi.hpp
         providers/kick/KickBadges.cpp
@@ -588,6 +592,8 @@ set(SOURCE_FILES
         util/FuzzyConvert.hpp
         util/Helpers.cpp
         util/Helpers.hpp
+        util/HttpServer.cpp
+        util/HttpServer.hpp
         util/ImageUploader.cpp
         util/ImageUploader.hpp
         util/IncognitoBrowser.cpp
@@ -724,6 +730,8 @@ set(SOURCE_FILES
         widgets/dialogs/font/PreviewWidget.cpp
         widgets/dialogs/font/PreviewWidget.hpp
 
+        widgets/dialogs/KickLoginPage.cpp
+        widgets/dialogs/KickLoginPage.hpp
         widgets/dialogs/LastRunCrashDialog.cpp
         widgets/dialogs/LastRunCrashDialog.hpp
         widgets/dialogs/LoginDialog.cpp
@@ -786,8 +794,12 @@ set(SOURCE_FILES
         widgets/helper/IconDelegate.hpp
         widgets/helper/InvisibleSizeGrip.cpp
         widgets/helper/InvisibleSizeGrip.hpp
+        widgets/helper/KickAccountSwitchWidget.cpp
+        widgets/helper/KickAccountSwitchWidget.hpp
         widgets/helper/MessageView.cpp
         widgets/helper/MessageView.hpp
+        widgets/helper/MicroNotebook.cpp
+        widgets/helper/MicroNotebook.hpp
         widgets/helper/NotebookTab.cpp
         widgets/helper/NotebookTab.hpp
         widgets/helper/OverlayInteraction.cpp
