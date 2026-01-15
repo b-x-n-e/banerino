@@ -74,6 +74,16 @@ bool Channel::isWatching() const
     return this->watching_;
 }
 
+bool Channel::isKickChannel() const
+{
+    return this->type_ == Type::Kick;
+}
+
+bool Channel::isTwitchOrKickChannel() const
+{
+    return this->isTwitchChannel() || this->isKickChannel();
+}
+
 bool Channel::isEmpty() const
 {
     return this->name_.isEmpty();
