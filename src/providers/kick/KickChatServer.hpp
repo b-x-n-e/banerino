@@ -1,6 +1,8 @@
 #pragma once
 
+#include "messages/Emote.hpp"
 #include "providers/kick/KickChannel.hpp"
+#include "providers/kick/KickLiveController.hpp"
 #include "providers/kick/KickLiveUpdates.hpp"
 #include "util/FunctionRef.hpp"
 #include "util/QStringHash.hpp"  // IWYU pragma: keep
@@ -27,6 +29,7 @@ public:
     void initialize();
 
     std::shared_ptr<KickChannel> findByRoomID(uint64_t roomID) const;
+    std::shared_ptr<KickChannel> findByUserID(uint64_t userID) const;
     std::shared_ptr<KickChannel> findBySlug(const QString &slug) const;
 
     void forEachChannel(FunctionRef<void(KickChannel &channel)> cb);
@@ -48,6 +51,14 @@ public:
         return this->liveUpdates_;
     }
 
+    const boost::unordered_flat_map<uint64_t, std::weak_ptr<KickChannel>> &
+        channelMap() const
+    {
+        return this->channelsByRoomID;
+    }
+
+    std::shared_ptr<const EmoteMap> globalEmotes() const;
+
 private:
     void registerRoomID(uint64_t roomID, std::weak_ptr<KickChannel> chan);
 
@@ -59,14 +70,22 @@ private:
     void onMessageDeleted(KickChannel *channel, BoostJsonObject data);
     void onChatroomClear(KickChannel *channel, BoostJsonObject data);
 
+    void loadGlobalEmotesIfNeeded();
+
     boost::unordered_flat_map<uint64_t, std::weak_ptr<KickChannel>>
         channelsByRoomID;
+    boost::unordered_flat_map<uint64_t, std::weak_ptr<KickChannel>>
+        channelsByUserID;
     boost::unordered_flat_map<QString, std::weak_ptr<KickChannel>>
         channelsBySlug;
 
     KickLiveUpdates liveUpdates_;
+    KickLiveController liveController_;
 
     pajlada::Signals::SignalHolder signalHolder_;
+
+    std::shared_ptr<const EmoteMap> globalEmotes_;
+    bool loadingGlobalEmotes_ = false;
 
     friend class ChatServerListener;
     friend KickChannel;

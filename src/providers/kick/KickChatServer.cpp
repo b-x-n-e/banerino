@@ -3,6 +3,8 @@
 #include "Application.hpp"
 #include "common/QLogging.hpp"
 #include "messages/MessageBuilder.hpp"
+#include "providers/kick/KickApi.hpp"
+#include "providers/kick/KickEmotes.hpp"
 #include "providers/kick/KickMessageBuilder.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"  // IWYU pragma: keep
 #include "providers/seventv/SeventvEventAPI.hpp"
@@ -11,9 +13,13 @@
 #include "util/BoostJsonWrap.hpp"
 #include "util/PostToThread.hpp"
 
+#include <QPointer>
+
 #include <utility>
 
 namespace {
+
+using namespace Qt::Literals;
 
 // fallback case
 template <typename T>
@@ -37,7 +43,11 @@ T stringSwitch(std::string_view provided, std::string_view match, T &&value,
 
 namespace chatterino {
 
-KickChatServer::KickChatServer() = default;
+KickChatServer::KickChatServer()
+    : liveController_(*this)
+{
+}
+
 KickChatServer::~KickChatServer() = default;
 
 void KickChatServer::initialize()
@@ -49,6 +59,16 @@ std::shared_ptr<KickChannel> KickChatServer::findByRoomID(uint64_t roomID) const
 {
     auto it = this->channelsByRoomID.find(roomID);
     if (it != this->channelsByRoomID.end())
+    {
+        return it->second.lock();
+    }
+    return nullptr;
+}
+
+std::shared_ptr<KickChannel> KickChatServer::findByUserID(uint64_t userID) const
+{
+    auto it = this->channelsByUserID.find(userID);
+    if (it != this->channelsByUserID.end())
     {
         return it->second.lock();
     }
@@ -124,7 +144,17 @@ std::shared_ptr<Channel> KickChatServer::getOrCreate(
     {
         this->channelsByRoomID[init.roomID] = chan;
     }
+    this->signalHolder_.managedConnect(
+        chan->userIDChanged, [this, weak{chan->weakFromThis()}] {
+            auto chan = weak.lock();
+            if (chan && chan->userID() != 0)
+            {
+                this->channelsByUserID[chan->userID()] = weak;
+                this->liveController_.queueNewChannel(chan->userID());
+            }
+        });
     chan->initialize(init);
+    this->loadGlobalEmotesIfNeeded();
     return chan;
 }
 
@@ -241,6 +271,62 @@ void KickChatServer::onJoin(uint64_t roomID) const
         return;
     }
     existing->addSystemMessage("joined");
+}
+
+std::shared_ptr<const EmoteMap> KickChatServer::globalEmotes() const
+{
+    if (!this->globalEmotes_)
+    {
+        return EMPTY_EMOTE_MAP;
+    }
+    return this->globalEmotes_;
+}
+
+void KickChatServer::loadGlobalEmotesIfNeeded()
+{
+    if (this->globalEmotes_ || this->loadingGlobalEmotes_)
+    {
+        return;
+    }
+    this->loadingGlobalEmotes_ = true;
+    KickApi::privateEmotesInChannel(
+        u"kick"_s,
+        [self = QPointer(this)](
+            const ExpectedStr<std::vector<KickPrivateEmoteSetInfo>> &res) {
+            if (!self)
+            {
+                return;
+            }
+            self->loadingGlobalEmotes_ = false;
+            if (!res)
+            {
+                qCWarning(chatterinoKick)
+                    << "Failed to fetch global emotes:" << res.error();
+                self->globalEmotes_ = EMPTY_EMOTE_MAP;
+                return;
+            }
+            auto emotes = std::make_shared<EmoteMap>();
+            for (const auto &set : *res)
+            {
+                if (set.userID)
+                {
+                    continue;  // local set
+                }
+                for (const auto &emoteInfo : set.emotes)
+                {
+                    if (emoteInfo.subscribersOnly)
+                    {
+                        continue;
+                    }
+                    auto id = QString::number(emoteInfo.emoteID);
+                    auto emote = KickEmotes::emoteForID(id, emoteInfo.name);
+                    (*emotes)[emote->name] = emote;
+                }
+            }
+            self->globalEmotes_ = std::move(emotes);
+            qCDebug(chatterinoKick)
+                << "Loaded" << self->globalEmotes_->size() << "global emotes";
+        });
 }
 
 void KickChatServer::registerRoomID(uint64_t roomID,
