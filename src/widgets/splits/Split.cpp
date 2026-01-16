@@ -12,6 +12,7 @@
 #include "controllers/commands/CommandController.hpp"
 #include "controllers/hotkeys/HotkeyController.hpp"
 #include "controllers/notifications/NotificationController.hpp"
+#include "providers/kick/KickAccount.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -117,6 +118,10 @@ Split::Split(QWidget *parent)
         this->signalHolder_.managedConnect(channelChanged, [this] {
             this->updateInputPlaceholder();
         });
+        this->signalHolder_.managedConnect(
+            getApp()->getAccounts()->kick.currentUserChanged, [this] {
+                this->updateInputPlaceholder();
+            });
         this->updateInputPlaceholder();
     }
 
@@ -750,6 +755,20 @@ SplitInput &Split::getInput()
 
 void Split::updateInputPlaceholder()
 {
+    if (this->getChannel()->isKickChannel())
+    {
+        auto user = getApp()->getAccounts()->kick.current();
+        QString placeholderText = [&] {
+            if (user->isAnonymous())
+            {
+                return QStringLiteral("Log in to send messages...");
+            }
+            return QString(u"Send message as " % user->username() % u"...");
+        }();
+        this->input_->ui_.textEdit->setPlaceholderText(placeholderText);
+        return;
+    }
+
     if (!this->getChannel()->isTwitchChannel())
     {
         return;

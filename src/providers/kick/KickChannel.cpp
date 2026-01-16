@@ -284,6 +284,73 @@ bool KickChannel::hasHighRateLimit() const
     return this->hasModRights() || this->isVip();
 }
 
+bool KickChannel::isLive() const
+{
+    return this->streamData_.isLive;
+}
+
+void KickChannel::updateStreamData(const KickChannelInfo &info)
+{
+    assert(info.userID == this->userID());
+
+    bool changed = false;
+    if (this->streamData_.isLive != info.stream.isLive)
+    {
+        changed = true;
+        this->streamData_.isLive = info.stream.isLive;
+
+        if (this->streamData_.isLive)
+        {
+            this->addMessage(
+                MessageBuilder::makeLiveMessage(
+                    this->getDisplayName(), QString::number(this->userID()),
+                    info.streamTitle,
+                    {MessageFlag::System,
+                     MessageFlag::DoNotTriggerNotification}),
+                MessageContext::Original);
+        }
+        else
+        {
+            this->addMessage(
+                MessageBuilder::makeOfflineSystemMessage(
+                    this->getDisplayName(), QString::number(this->userID())),
+                MessageContext::Original);
+        }
+        this->liveStatusChanged.invoke();
+    }
+    if (this->streamData_.title != info.streamTitle)
+    {
+        changed = true;
+        this->streamData_.title = info.streamTitle;
+    }
+    if (this->streamData_.category != info.category.name)
+    {
+        changed = true;
+        this->streamData_.category = info.category.name;
+    }
+
+    if (this->streamData_.isLive)
+    {
+        changed = true;
+        this->streamData_.thumbnailUrl = info.stream.thumbnailUrl;
+        this->streamData_.viewerCount = info.stream.viewerCount;
+        auto uptimeMinutes =
+            info.stream.startTime.secsTo(QDateTime::currentDateTime()) / 60;
+        this->streamData_.uptime = QString::number(uptimeMinutes / 60) % u"h " %
+                                   QString::number(uptimeMinutes % 60) % u"m";
+    }
+
+    if (changed)
+    {
+        this->streamDataChanged.invoke();
+    }
+}
+
+const KickChannel::StreamData &KickChannel::streamData() const
+{
+    return this->streamData_;
+}
+
 void KickChannel::resolveChannelInfo()
 {
     auto weak = this->weakFromThis();
@@ -345,6 +412,7 @@ void KickChannel::setUserInfo(UserInit init)
     if (oldUserID != this->userID())
     {
         this->reloadSeventvEmotes(false);
+        this->userIDChanged.invoke();
     }
 }
 
@@ -413,10 +481,54 @@ bool KickChannel::checkMessageRatelimit()
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static) -- might need some state later
 QString KickChannel::prepareMessage(const QString &message) const
 {
-    QString prepared =
-        getApp()->getEmotes()->getEmojis()->replaceShortCodes(message);
+    const QString baseMessage = getApp()
+                                    ->getEmotes()
+                                    ->getEmojis()
+                                    ->replaceShortCodes(message)
+                                    .simplified();
 
-    return prepared.simplified();
+    // We need to manually add the emotes. They're in the format
+    // "[emote:{id}:{name}]". If the name doesn't match the emote name, Kick
+    // will reject the message.
+    auto globalEmotes = getApp()->getKickChatServer()->globalEmotes();
+    QString outMessage;
+    const QChar *lastEnd = nullptr;
+    for (QStringView word : baseMessage.tokenize(u' '))
+    {
+        EmoteName emote{word.toString()};  // FIXME: get rid of this
+        auto it = globalEmotes->find(emote);
+        if (it == globalEmotes->end())
+        {
+            continue;
+        }
+
+        if (lastEnd)
+        {
+            outMessage += QStringView(lastEnd, word.begin());
+        }
+        else if (word.begin() != baseMessage.begin())
+        {
+            outMessage += QStringView(baseMessage.begin(), word.begin());
+        }
+
+        lastEnd = word.end();
+        outMessage += u"[emote:";
+        outMessage += it->second->id.string;
+        outMessage += ':';
+        outMessage += it->second->name.string;
+        outMessage += ']';
+    }
+
+    if (lastEnd)
+    {
+        outMessage += QStringView(lastEnd, baseMessage.end());
+    }
+    else
+    {
+        // no emote added
+        outMessage = baseMessage;
+    }
+    return outMessage;
 }
 
 void KickChannel::addLoginMessage()
