@@ -8,6 +8,7 @@
 #include "common/Channel.hpp"
 #include "controllers/accounts/AccountController.hpp"
 #include "controllers/commands/builtin/chatterino/Debugging.hpp"
+#include "controllers/commands/builtin/kick/KickRawEvent.hpp"
 #include "controllers/commands/builtin/Misc.hpp"
 #include "controllers/commands/builtin/twitch/AddModerator.hpp"
 #include "controllers/commands/builtin/twitch/AddVIP.hpp"
@@ -43,6 +44,7 @@
 #include "messages/MessageThread.hpp"
 #include "providers/emoji/Emojis.hpp"
 #include "providers/IvrApi.hpp"
+#include "providers/kick/KickChannel.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
@@ -536,6 +538,9 @@ CommandController::CommandController(const Paths &paths)
     this->registerCommand("/debug-invalidate-buffers",
                           &commands::invalidateBuffers);
 
+    this->registerCommand("/debug-kick-raw-event",
+                          &commands::debugKickRawEvent);
+
     this->registerCommand("/debug-eventsub", &commands::eventsub);
 
     this->registerCommand("/debug-test", &commands::debugTest);
@@ -621,6 +626,7 @@ QString CommandController::execCommand(const QString &textNoEmoji,
                     words,
                     channel,
                     dynamic_cast<TwitchChannel *>(channel.get()),
+                    dynamic_cast<KickChannel *>(channel.get()),
                 };
                 return (*command)(ctx);
             }
