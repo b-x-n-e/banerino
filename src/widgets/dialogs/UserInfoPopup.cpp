@@ -1239,7 +1239,6 @@ void UserInfoPopup::updateUserData()
             },
             [] {});
 
-        this->loadSevenTVUser(user);
         // get pronouns
         if (getSettings()->showPronouns)
         {
@@ -1350,28 +1349,6 @@ void UserInfoPopup::loadAvatar(const QString &userID, const QString &pictureURL,
     }
 }
 
-void UserInfoPopup::loadSevenTVUser(const HelixUser &user)
-{
-    NetworkRequest(SEVENTV_TWITCH_USER_API.arg(user.id))
-        .timeout(20000)
-        .onSuccess([this, hack = std::weak_ptr<bool>(this->lifetimeHack_)](
-                       const NetworkResult &result) {
-            if (!hack.lock())
-            {
-                return;
-            }
-
-            auto root = result.parseJson();
-            auto id = root["user"].toObject()["id"].toString();
-
-            this->stvUserId_ = id;
-            this->ui_.stvUser->setVisible(true);
-
-            return;
-        })
-        .execute();
-}
-
 void UserInfoPopup::loadSevenTVAvatar(const QString &userID, bool isKick)
 {
     auto fmt = isKick ? SEVENTV_KICK_USER_API : SEVENTV_TWITCH_USER_API;
@@ -1386,6 +1363,13 @@ void UserInfoPopup::loadSevenTVAvatar(const QString &userID, bool isKick)
 
             auto root = result.parseJson();
             auto url = root["user"].toObject()["avatar_url"].toString();
+            auto stvUserId = root["user"].toObject()["id"].toString();
+
+            if (!stvUserId.isEmpty())
+            {
+                this->stvUserId_ = stvUserId;
+                this->ui_.stvUser->setVisible(true);
+            }
 
             if (url.isEmpty())
             {
