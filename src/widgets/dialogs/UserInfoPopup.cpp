@@ -501,6 +501,7 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
                            .assign(&this->ui_.stvUser);
 
         stvUser->setVisible(false);
+        userlogs->setVisible(false);
 
         auto mod = user.emplace<PixmapButton>(this);
         mod->setPixmap(getResources().buttons.mod);
@@ -1004,6 +1005,8 @@ void UserInfoPopup::updateLatestMessages()
 
 void UserInfoPopup::updateUserData()
 {
+    this->ui_.userlogsLabel->setVisible(true);
+
     std::weak_ptr<bool> hack = this->lifetimeHack_;
     auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
 
