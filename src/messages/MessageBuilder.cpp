@@ -541,9 +541,9 @@ EmotePtr parseEmote(TwitchChannel *twitchChannel, const QString &userID,
     if (twitchChannel != nullptr)
     {
         // Check for channel emotes
-        emote =
-            getApp()->getSeventvPersonalEmotes()->getEmoteForUser(userID, name);
-        if (emote)
+        emote = getApp()->getSeventvPersonalEmotes()->getEmoteForTwitchUser(
+            userID, name);
+        if (*emote)
         {
             return *emote;
         }
@@ -1986,7 +1986,8 @@ void MessageBuilder::addWordFromUserMessage(QStringView string,
             auto remainder = string.sliced(prefixedUsername.size());
             this->emplace<MentionElement>(prefixedUsername, username,
                                           originalTextColor, textColor)
-                ->setTrailingSpace(remainder.isEmpty());
+                ->setTrailingSpace(remainder.isEmpty())
+                ->addFlags(chatters->mentionFlag());
 
             if (!remainder.isEmpty())
             {
@@ -2032,7 +2033,8 @@ void MessageBuilder::addWordFromUserMessage(QStringView string,
             auto remainder = string.sliced(username.size());
             this->emplace<MentionElement>(username, username, originalTextColor,
                                           textColor)
-                ->setTrailingSpace(remainder.isEmpty());
+                ->setTrailingSpace(remainder.isEmpty())
+                ->addFlags(chatters->mentionFlag());
 
             if (!remainder.isEmpty())
             {
