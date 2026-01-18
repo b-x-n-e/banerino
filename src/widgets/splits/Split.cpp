@@ -13,6 +13,7 @@
 #include "controllers/hotkeys/HotkeyController.hpp"
 #include "controllers/notifications/NotificationController.hpp"
 #include "providers/kick/KickAccount.hpp"
+#include "providers/kick/KickChannel.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "providers/twitch/TwitchIrcServer.hpp"
@@ -526,7 +527,7 @@ void Split::addShortcuts()
          }},
         {"setModerationMode",
          [this](const std::vector<QString> &arguments) -> QString {
-             if (!this->getChannel()->isTwitchChannel())
+             if (!this->getChannel()->isTwitchOrKickChannel())
              {
                  return "Cannot set moderation mode in a non-Twitch "
                         "channel.";
@@ -857,6 +858,7 @@ void Split::setChannel(IndirectChannel newChannel)
     this->indirectChannelChangedConnection_.disconnect();
 
     TwitchChannel *tc = dynamic_cast<TwitchChannel *>(newChannel.get().get());
+    auto *kc = dynamic_cast<KickChannel *>(newChannel.get().get());
 
     if (tc != nullptr)
     {
@@ -866,6 +868,17 @@ void Split::setChannel(IndirectChannel newChannel)
         });
 
         this->roomModeChangedConnection_ = tc->roomModesChanged.connect([this] {
+            this->header_->updateRoomModes();
+        });
+    }
+    else if (kc != nullptr)
+    {
+        this->usermodeChangedConnection_ = kc->userStateChanged.connect([this] {
+            this->header_->updateIcons();
+            this->header_->updateRoomModes();
+        });
+
+        this->roomModeChangedConnection_ = kc->roomModesChanged.connect([this] {
             this->header_->updateRoomModes();
         });
     }
