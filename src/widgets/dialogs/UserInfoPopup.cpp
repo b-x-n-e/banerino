@@ -926,6 +926,7 @@ void UserInfoPopup::setData(const QString &name,
     else
     {
         this->userName_ = name;
+        this->kickUserSlug_ = KickApi::slugify(name);
     }
 
     this->channel_ = openingChannel;
@@ -1541,6 +1542,7 @@ void UserInfoPopup::updateKickUserData()
         if (self->userName_.isEmpty())
         {
             self->userName_ = channel.user.username;
+            self->kickUserSlug_ = channel.slug;
             self->ui_.nameLabel->setText(channel.user.username);
 
             // Ensure recent messages are shown
@@ -1675,7 +1677,7 @@ void UserInfoPopup::onKickProfilePictureClick(Qt::MouseButton button)
     {
         case Qt::LeftButton: {
             QDesktopServices::openUrl(
-                QUrl("https://kick.com/" + this->userName_.toLower()));
+                QUrl("https://kick.com/" + this->kickUserSlug_));
         }
         break;
 
