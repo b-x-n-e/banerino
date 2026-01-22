@@ -1973,6 +1973,7 @@ void MessageBuilder::addWordFromUserMessage(QStringView string,
             QString username = match.captured(1);
             auto originalTextColor = textColor;
 
+            MessageElementFlag mentionFlag{};
             if (chatters != nullptr)
             {
                 if (auto userColor = chatters->getUserColor(username);
@@ -1980,6 +1981,7 @@ void MessageBuilder::addWordFromUserMessage(QStringView string,
                 {
                     textColor = userColor;
                 }
+                mentionFlag = chatters->mentionFlag();
             }
 
             auto prefixedUsername = '@' + username;
@@ -1987,7 +1989,7 @@ void MessageBuilder::addWordFromUserMessage(QStringView string,
             this->emplace<MentionElement>(prefixedUsername, username,
                                           originalTextColor, textColor)
                 ->setTrailingSpace(remainder.isEmpty())
-                ->addFlags(chatters->mentionFlag());
+                ->addFlags(mentionFlag);
 
             if (!remainder.isEmpty())
             {
