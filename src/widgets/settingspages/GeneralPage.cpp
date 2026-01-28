@@ -1294,6 +1294,13 @@ void GeneralPage::initLayout(GeneralPageView &layout)
             ->conditionallyEnabledBy(s.searchEnabled)
             ->addTo(layout);
     }
+    if (supportsIncognitoLinks())
+    {
+        SettingWidget::checkbox("Search in incognito/private mode",
+                                s.searchIncognito)
+            ->addTo(layout);
+    }
+
     layout.addSubtitle("Miscellaneous");
     if (supportsIncognitoLinks())
     {
