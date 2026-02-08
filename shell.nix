@@ -20,8 +20,7 @@ pkgs.mkShell {
     export NIX_BUILD_TOP="$PWD/build"
     export GEN_DATE=$(date -I)
 
-    alias configure="cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DBUILD_WITH_QT6=1 -DBUILD_TESTS=1 -DCHATTERINO_SPELLCHECK=1 .."
-    alias nightly="echo "nightly" > $NIX_BUILD_TOP/bin/modes"
+    alias configure="cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DBUILD_WITH_QT6=1 -DBUILD_TESTS=1 -DCHATTERINO_SPELLCHECK=1 -DCHATTERINO_NIGHTLY_BUILD=1 .."
 
     mkdir -p "$NIX_BUILD_TOP"
     cd $NIX_BUILD_TOP

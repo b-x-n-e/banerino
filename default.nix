@@ -39,6 +39,7 @@ in
 
       cmakeFlags = prev.cmakeFlags ++ [
         (pkgs.lib.cmakeBool "CHATTERINO_SPELLCHECK" true)
+        (pkgs.lib.cmakeBool "CHATTERINO_NIGHTLY_BUILD" true)
       ];
 
       postInstall = ''
