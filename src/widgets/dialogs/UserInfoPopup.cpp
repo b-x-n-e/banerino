@@ -599,7 +599,8 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
     // third line
     auto moderation = layout.emplace<QHBoxLayout>().withoutMargin();
     {
-        auto timeout = moderation.emplace<TimeoutWidget>();
+        auto timeout = moderation.emplace<TimeoutWidget>().assign(
+            &this->ui_.timeoutWidget);
 
         // We can safely ignore this signal connection since this is a private signal, and
         // we only connect once
@@ -943,6 +944,10 @@ void UserInfoPopup::setData(const QString &name,
     this->setWindowTitle(
         TEXT_TITLE.arg(name, this->underlyingChannel_->getName()));
     this->isKick_ = this->underlyingChannel_->getType() == Channel::Type::Kick;
+    if (this->isKick_)
+    {
+        this->ui_.timeoutWidget->setMinTimeout(60);
+    }
 
     this->ui_.nameLabel->setText(name);
     this->ui_.nameLabel->setProperty("copy-text", name);
@@ -1802,6 +1807,7 @@ UserInfoPopup::TimeoutWidget::TimeoutWidget()
 
             const auto pair =
                 std::make_pair(Action::Timeout, calculateTimeoutDuration(item));
+            this->timeoutButtons.emplace_back(a.getElement(), pair.second);
 
             QObject::connect(a.getElement(), &LabelButton::leftClicked,
                              [this, pair] {
@@ -1823,6 +1829,14 @@ void UserInfoPopup::TimeoutWidget::paintEvent(QPaintEvent *)
 
     //    painter.drawLine(0, this->height() / 2, this->width(), this->height()
     //    / 2);
+}
+
+void UserInfoPopup::TimeoutWidget::setMinTimeout(int minSecs)
+{
+    for (auto &[widget, dur] : this->timeoutButtons)
+    {
+        widget->setVisible(dur >= minSecs);
+    }
 }
 
 void UserInfoPopup::updateAvatarUrl()
