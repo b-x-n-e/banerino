@@ -113,14 +113,6 @@ public:
                    ResultCallback<IvrModVip> resultCallback,
                    IvrFailureCallback failureCallback);
 
-    void getMods2807Tools(QString channelName,
-                          ResultCallback<QJsonArray> resultCallback,
-                          IvrFailureCallback failureCallback);
-
-    void getVips2807Tools(QString channelName,
-                          ResultCallback<QJsonArray> resultCallback,
-                          IvrFailureCallback failureCallback);
-
     static void initialize();
 
     IvrApi() = default;
@@ -133,7 +125,6 @@ public:
 
 private:
     NetworkRequest makeRequest(QString url, QUrlQuery urlQuery);
-    NetworkRequest makeRequest2807Tools(QString url, QUrlQuery urlQuery);
 };
 
 IvrApi *getIvr();
