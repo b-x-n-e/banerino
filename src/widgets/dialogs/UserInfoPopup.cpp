@@ -508,7 +508,11 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
         auto userlogs = user.emplace<LabelButton>("Logs", this)
                             .assign(&this->ui_.userlogsLabel);
 
+        auto stvUser = user.emplace<LabelButton>("7tv User", this)
+                           .assign(&this->ui_.stvUserLabel);
+
         userlogs->setVisible(false);
+        stvUser->setVisible(false);
 
         auto mod = user.emplace<PixmapButton>(this);
         mod->setPixmap(getResources().buttons.mod);
@@ -535,6 +539,14 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
             QDesktopServices::openUrl("https://tv.supa.sh/logs?c=" +
                                       this->underlyingChannel_->getName() +
                                       "&u=" + this->userName_);
+        });
+
+        QObject::connect(stvUser.getElement(), &Button::leftClicked, [this] {
+            if (!this->seventvUserID_.isEmpty())
+            {
+                QDesktopServices::openUrl("https://7tv.app/users/" +
+                                          this->seventvUserID_);
+            }
         });
 
         QObject::connect(mod.getElement(), &Button::leftClicked, [this] {
@@ -1381,6 +1393,12 @@ void UserInfoPopup::loadSevenTVAvatar(const QString &userID, bool isKick)
             const auto userObj = root["user"].toObject();
             this->seventvUserID_ = userObj["id"].toString();
             auto url = userObj["avatar_url"].toString();
+
+            if (!this->seventvUserID_.isEmpty() &&
+                getSettings()->stvUsercardButton)
+            {
+                this->ui_.stvUserLabel->setVisible(true);
+            }
 
             if (url.isEmpty())
             {

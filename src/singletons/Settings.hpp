@@ -728,6 +728,7 @@ public:
     BoolSetting betaUpdates = {"/misc/beta", false};
     BoolSetting abnormalNonceDetection = {"/misc/abnormalNonceDetection",
                                           false};
+    BoolSetting stvUsercardButton = {"misc/stvUsercardButton", true};
     BoolSetting normalNonceDetection = {"/misc/normalNonceDetection", false};
     BoolSetting nonceFuckeryEnabled = {"/misc/nonceFuckeryEnabled", false};
     QStringSetting webchatColor = {"/misc/webchatColor", "#3FFFA30B"};

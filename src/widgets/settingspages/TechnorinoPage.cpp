@@ -137,6 +137,9 @@ void TechnorinoPage::initLayout(GeneralPageView &layout)
                             s.abnormalNonceDetection)
         ->setTooltip("Abnormal nonce detection")
         ->addTo(layout);
+    SettingWidget::checkbox("\"7TV User\" usercard button", s.stvUsercardButton)
+        ->setTooltip("Add \"7TV User\" button to usercard directly")
+        ->addTo(layout);
 
     layout.addTitle("Client detection");
     SettingWidget::checkbox("Client detection highlights. ",

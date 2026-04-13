@@ -136,6 +136,7 @@ private:
         LabelButton *usercardLabel = nullptr;
         LabelButton *switchAvatars = nullptr;
         LabelButton *userlogsLabel = nullptr;
+        LabelButton *stvUserLabel = nullptr;
 
         TimeoutWidget *timeoutWidget = nullptr;
     } ui_;
