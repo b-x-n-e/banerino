@@ -1255,7 +1255,8 @@ void Split::openChatterList()
 
     QObject::connect(chatterDock, &ChatterListWidget::userClicked,
                      [this](const QString &userLogin) {
-                         this->view_->showUserInfoPopup(userLogin);
+                         this->view_->showUserInfoPopup(
+                             userLogin, MessagePlatform::AnyOrTwitch);
                      });
 
     chatterDock->resize(chatterListWidth, chatterListHeight);
