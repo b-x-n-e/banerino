@@ -5,6 +5,7 @@
 #include "providers/twitch/TwitchBadges.hpp"
 
 #include "Application.hpp"
+#include "common/Channel.hpp"
 #include "common/network/NetworkRequest.hpp"
 #include "common/network/NetworkResult.hpp"
 #include "common/QLogging.hpp"
@@ -71,8 +72,14 @@ void TwitchBadges::loadTwitchBadges()
 
             getApp()->getWindows()->getMainWindow().getNotebook().forEachSplit(
                 [](Split *split) {
-                    split->getChannel()->addSystemMessage(
-                        "Global Twitch badges loaded.");
+                    auto channel = split->getChannel();
+                    auto type = channel->getType();
+
+                    if (type == Channel::Type::Twitch)
+                    {
+                        channel->addSystemMessage(
+                            "Global Twitch badges loaded.");
+                    }
                 });
 
             this->loaded();
