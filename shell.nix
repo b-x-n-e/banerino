@@ -17,6 +17,8 @@ pkgs.mkShell {
     unset QT_PLUGIN_PATH
     unset QT_QPA_PLATFORM_PLUGIN_PATH
 
+    export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [ pkgs.libpulseaudio ]}:$LD_LIBRARY_PATH"
+
     export NIX_BUILD_TOP="$PWD/build"
     export GEN_DATE=$(date -I)
 
