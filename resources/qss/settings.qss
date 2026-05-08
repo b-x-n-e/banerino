@@ -1,6 +1,6 @@
 * {
     font-size: 14px;
-    font-family: "Segoe UI";
+    font-family: "Inter", "Segoe UI", sans-serif;
 }
 
 QCheckBox::indicator {
@@ -23,6 +23,7 @@ QScrollArea QFrame {
 QComboBox QFrame {
     background: #000;
     border: 1px solid #66BCFF;
+    border-radius: 4px;
 }
 
 chatterino--SettingsDialog chatterino--SettingsDialogTab {
@@ -46,15 +47,15 @@ chatterino--PageHeader {
 }
 
 chatterino--TitleLabel {
-    font-family: "Segoe UI light";
+    font-family: "Inter", "Segoe UI light";
     font-size: 24px;
-    color: #4FC3F7; /* Should this be same as accent color? */
+    color: #00aeef;
 }
 
 chatterino--SubtitleLabel {
-    font-family: "Segoe UI light";
+    font-family: "Inter", "Segoe UI light";
     font-size: 16px;
-    color: #4FC3F7; /* Should this be same as accent color? */
+    color: #00aeef;
 }
 
 chatterino--DescriptionLabel {
@@ -67,7 +68,7 @@ QLabel#description {
 }
 
 chatterino--NavigationLabel {
-    font-family: "Segoe UI light";
+    font-family: "Inter", "Segoe UI light";
     font-size: 15px;
     color: #A6DDF4;
 }

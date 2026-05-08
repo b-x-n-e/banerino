@@ -4,11 +4,11 @@
     "iconTheme": "light"
   },
   "colors": {
-    "accent": "#00aeef",
+    "accent": "#7f5af0",
     "messages": {
       "backgrounds": {
-        "alternate": "#222222",
-        "regular": "#191919"
+        "alternate": "#1c1c24",
+        "regular": "#15151b"
       },
       "disabled": "#99191919",
       "highlightAnimationEnd": "#00e6e6e6",
@@ -44,8 +44,8 @@
       "thumbSelected": "#616161"
     },
     "splits": {
-      "background": "#191919",
-      "dropPreview": "#300094ff",
+      "background": "#15151b",
+      "dropPreview": "#307f5af0",
       "dropPreviewBorder": "#0094ff",
       "dropTargetRect": "#000094ff",
       "dropTargetRectBorder": "#000094ff",
@@ -124,8 +124,8 @@
       }
     },
     "window": {
-      "background": "#111111",
-      "text": "#eeeeee"
+      "background": "#0f0f13",
+      "text": "#fffffe"
     }
   }
 }

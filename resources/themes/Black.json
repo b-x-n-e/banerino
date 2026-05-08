@@ -4,7 +4,7 @@
     "iconTheme": "light"
   },
   "colors": {
-    "accent": "#00aeef",
+    "accent": "#7f5af0",
     "messages": {
       "backgrounds": {
         "alternate": "#0a0a0a",
@@ -116,16 +116,16 @@
           "unfocused": "#333333"
         },
         "line": {
-          "hover": "#00aeef",
-          "regular": "#00aeef",
-          "unfocused": "#00aeef"
+          "hover": "#7f5af0",
+          "regular": "#7f5af0",
+          "unfocused": "#7f5af0"
         },
         "text": "#ffffff"
       }
     },
     "window": {
-      "background": "#040404",
-      "text": "#eeeeee"
+      "background": "#000000",
+      "text": "#fffffe"
     }
   }
 }
