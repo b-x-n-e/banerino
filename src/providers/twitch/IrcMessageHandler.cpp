@@ -27,6 +27,7 @@
 #include "singletons/Settings.hpp"
 #include "singletons/StreamerMode.hpp"
 #include "singletons/WindowManager.hpp"
+#include "providers/seventv/SeventvPaints.hpp"
 #include "util/FormatTime.hpp"
 #include "util/Helpers.hpp"
 #include "util/IrcHelpers.hpp"
@@ -1146,6 +1147,17 @@ void IrcMessageHandler::addMessage(Communi::IrcMessage *message,
     args.isAction = isAction;
 
     const auto &tags = message->tags();
+
+    // Lazily resolve 7TV paint for this user
+    if (getSettings()->displaySevenTVPaints)
+    {
+        auto userID = tags.value("user-id").toString();
+        auto userName = message->nick();
+        if (!userID.isEmpty() && !userName.isEmpty())
+        {
+            getApp()->getSeventvPaints()->resolveUserPaint(userID, userName);
+        }
+    }
     QString rewardId;
     if (const auto it = tags.find("custom-reward-id"); it != tags.end())
     {

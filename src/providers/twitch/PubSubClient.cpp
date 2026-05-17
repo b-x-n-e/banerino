@@ -162,6 +162,23 @@ void PubSubClient::handleResponse(const PubSubMessage &message)
 
 void PubSubClient::handleMessageResponse(const PubSubMessageMessage &message)
 {
+    if (message.topic.startsWith("community-points-user-v1."))
+    {
+        auto oInnerMessage = message.toInner<PubSubCommunityPointsUserV1Message>();
+        if (!oInnerMessage)
+        {
+            qCDebug(chatterinoPubSub) << "Malformed community-points-user-v1 message";
+            return;
+        }
+
+        const auto &innerMessage = *oInnerMessage;
+        if (innerMessage.balance != -1)
+        {
+            this->manager_.pointReward.userBalanceUpdated.invoke(innerMessage.balance, innerMessage.channelId);
+        }
+        return;
+    }
+
     if (!message.topic.startsWith("community-points-channel-v1."))
     {
         return;

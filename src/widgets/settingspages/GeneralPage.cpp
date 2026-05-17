@@ -131,30 +131,6 @@ void GeneralPage::initLayout(GeneralPageView &layout)
 
     layout.addTitle("Interface");
 
-    {
-        auto *themes = getApp()->getThemes();
-        auto available = themes->availableThemes();
-        available.emplace_back("System", "System");
-
-        SettingWidget::dropdown("Theme", themes->themeName, available)
-            ->addTo(layout);
-
-        SettingWidget::dropdown("Dark system theme",
-                                themes->darkSystemThemeName,
-                                themes->availableThemes())
-            ->setTooltip("This theme is selected if your system is in a dark "
-                         "theme and you enabled the adaptive 'System' theme.")
-            ->conditionallyEnabledBy(themes->themeName, "System")
-            ->addTo(layout);
-
-        SettingWidget::dropdown("Light system theme",
-                                themes->lightSystemThemeName,
-                                themes->availableThemes())
-            ->setTooltip("This theme is selected if your system is in a light "
-                         "theme and you enabled the adaptive 'System' theme.")
-            ->conditionallyEnabledBy(themes->themeName, "System")
-            ->addTo(layout);
-    }
 
     layout.addDropdown<float>(
         "Zoom", ZOOM_LEVELS, s.uiScale,
@@ -171,46 +147,6 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         [](auto args) {
             return fuzzyToFloat(args.value, 1.f);
         });
-    ComboBox *tabDirectionDropdown =
-        layout.addDropdown<std::underlying_type_t<NotebookTabLocation>>(
-            "Tab layout", {"Top", "Left", "Right", "Bottom"}, s.tabDirection,
-            [](auto val) {
-                switch (val)
-                {
-                    case NotebookTabLocation::Top:
-                        return "Top";
-                    case NotebookTabLocation::Left:
-                        return "Left";
-                    case NotebookTabLocation::Right:
-                        return "Right";
-                    case NotebookTabLocation::Bottom:
-                        return "Bottom";
-                }
-
-                return "";
-            },
-            [](auto args) {
-                if (args.value == "Bottom")
-                {
-                    return NotebookTabLocation::Bottom;
-                }
-                else if (args.value == "Left")
-                {
-                    return NotebookTabLocation::Left;
-                }
-                else if (args.value == "Right")
-                {
-                    return NotebookTabLocation::Right;
-                }
-                else
-                {
-                    // default to top
-                    return NotebookTabLocation::Top;
-                }
-            },
-            false);
-    tabDirectionDropdown->setMinimumWidth(
-        tabDirectionDropdown->minimumSizeHint().width());
 
     layout.addDropdown<std::underlying_type_t<NotebookTabVisibility>>(
         "Tab visibility", {"All tabs", "Only live tabs"}, s.tabVisibility,

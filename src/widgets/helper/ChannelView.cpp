@@ -46,6 +46,7 @@
 #include "widgets/dialogs/ReplyThreadPopup.hpp"
 #include "widgets/dialogs/SettingsDialog.hpp"
 #include "widgets/dialogs/UserInfoPopup.hpp"
+#include "widgets/helper/MessageActionMenu.hpp"
 #include "widgets/helper/ScrollbarHighlight.hpp"
 #include "widgets/helper/SearchPopup.hpp"
 #include "widgets/Notebook.hpp"
@@ -318,6 +319,7 @@ ChannelView::ChannelView(InternalCtor /*tag*/, QWidget *parent, Split *split,
     , highlightAnimation_(this)
     , context_(context)
     , messages_(messagesLimit)
+    , actionMenu_(new MessageActionMenu(this))
     , tooltipWidget_(new TooltipWidget(this))
 {
     this->setMouseTracking(true);
@@ -1616,6 +1618,22 @@ void ChannelView::paintEvent(QPaintEvent *event)
 
     painter.fillRect(this->rect(), this->messageColors_.channelBackground);
 
+    // draw custom background image
+    auto *theme = getTheme();
+    if (!theme->background.image.isNull()) {
+        painter.setOpacity(theme->background.opacity);
+        // keep aspect ratio, expand to cover the channel view completely
+        QPixmap scaled = theme->background.image.scaled(this->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        
+        // draw it centered
+        int x = (this->width() - scaled.width()) / 2;
+        int y = (this->height() - scaled.height()) / 2;
+        painter.drawPixmap(x, y, scaled);
+
+        // Reset opacity for the rest of the painting
+        painter.setOpacity(1.0);
+    }
+
     // draw messages
     this->drawMessages(painter, event->rect());
 
@@ -1951,6 +1969,10 @@ void ChannelView::leaveEvent(QEvent * /*event*/)
 {
     this->tooltipWidget_->hide();
 
+    if (this->actionMenu_ && !this->actionMenu_->underMouse()) {
+        this->actionMenu_->hide();
+    }
+
     this->unpause(PauseReason::Mouse);
 }
 
@@ -2073,6 +2095,41 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
         this->setSelection(selectUnion);
     }
 
+    if (getSettings()->enableMessageActionMenu &&
+        layout->getMessagePtr() && layout->getMessage()->id != "") {
+        
+        // If the menu is already visible and the cursor is within (or near)
+        // the menu's bounds, don't reposition — let the user click it
+        if (this->actionMenu_->isVisible()) {
+            QRect menuRect = this->actionMenu_->geometry();
+            menuRect.adjust(-4, -4, 4, 4); // small margin for easier targeting
+            if (menuRect.contains(event->pos())) {
+                return;
+            }
+        }
+        
+        this->actionMenu_->setTarget(layout->getMessagePtr());
+        int menuWidth = this->actionMenu_->sizeHint().width();
+        int scrollBarW = this->scrollBar_->isVisible() ? this->scrollBar_->width() : 0;
+        
+        int x = this->width() - menuWidth - scrollBarW - 10;
+        
+        // Calculate the absolute Y position of the layout
+        int topY = event->pos().y() - relativePos.y();
+        int menuHeight = this->actionMenu_->sizeHint().height();
+        
+        // Position the menu directly above the message
+        int y = topY - menuHeight + 2;
+        
+        // Don't draw offscreen vertically
+        if (y < 0) y = 0;
+        
+        this->actionMenu_->move(x, y);
+        this->actionMenu_->show();
+        this->actionMenu_->raise();
+    } else if (!this->actionMenu_->underMouse()) {
+        this->actionMenu_->hide();
+    }
     // message under cursor is collapsed
     if (layout->flags.has(MessageLayoutFlag::Collapsed))
     {
@@ -2836,6 +2893,26 @@ void ChannelView::addMessageContextMenuItems(QMenu *menu,
                     kc->deleteMessage(id);
                 }
             });
+
+        // Pin message action (Twitch only)
+        auto *twitchChannel = dynamic_cast<TwitchChannel *>(
+            this->underlyingChannel_.get());
+        if (twitchChannel)
+        {
+            moderateMenu->addAction(
+                "&Pin message",
+                [twitchChannel, id = layout->getMessage()->id] {
+                    twitchChannel->pinMessage(id);
+                });
+
+            if (twitchChannel->getPinnedMessage().has_value())
+            {
+                moderateMenu->addAction(
+                    "&Unpin message", [twitchChannel] {
+                        twitchChannel->unpinMessage();
+                    });
+            }
+        }
     }
 
     bool isSearch = this->context_ == Context::Search;

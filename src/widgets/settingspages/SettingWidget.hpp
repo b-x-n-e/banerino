@@ -94,7 +94,8 @@ public:
                  const std::vector<std::pair<QString, QVariant>> &items);
 
     [[nodiscard("Must use created setting widget")]] static SettingWidget *
-        colorButton(const QString &label, QStringSetting &setting);
+        colorButton(const QString &label, QStringSetting &setting,
+                    std::function<QColor()> fallbackColor = {});
     [[nodiscard("Must use created setting widget")]] static SettingWidget *
         lineEdit(const QString &label, QStringSetting &setting,
                  const QString &placeholderText = {});

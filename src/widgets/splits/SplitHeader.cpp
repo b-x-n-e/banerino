@@ -1115,6 +1115,7 @@ void SplitHeader::updateIcons()
 void SplitHeader::paintEvent(QPaintEvent * /*event*/)
 {
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
 
     QColor background = this->theme->splits.header.background;
     QColor border = this->theme->splits.header.border;
@@ -1128,7 +1129,7 @@ void SplitHeader::paintEvent(QPaintEvent * /*event*/)
     painter.fillRect(this->rect(), background);
     painter.setPen(border);
     painter.drawRect(0, 0, this->width() - 1, this->height() - 2);
-    painter.fillRect(0, this->height() - 1, this->width(), 1, background);
+    painter.fillRect(0, this->height() - 1, this->width(), 1, border); // bottom border
 }
 
 void SplitHeader::mousePressEvent(QMouseEvent *event)

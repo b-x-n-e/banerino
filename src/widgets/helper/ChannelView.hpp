@@ -44,11 +44,12 @@ using MessageLayoutPtr = std::shared_ptr<MessageLayout>;
 enum class MessageElementFlag : int64_t;
 using MessageElementFlags = FlagsEnum<MessageElementFlag>;
 
-class Scrollbar;
+class ITheme;
 class LabelButton;
-struct Link;
-class MessageLayoutElement;
+class MessageActionMenu;
+class Scrollbar;
 class Split;
+class SplitInput;
 class FilterSet;
 using FilterSetPtr = std::shared_ptr<FilterSet>;
 
@@ -141,6 +142,8 @@ public:
     void pause(PauseReason reason,
                std::optional<uint32_t> msecs = std::nullopt);
     void unpause(PauseReason reason);
+
+    void setInputReply(const MessagePtr &message);
 
     MessageElementFlags getFlags() const;
 
@@ -327,7 +330,6 @@ private:
      */
     void scrollToMessageLayout(MessageLayout *layout, size_t messageIdx);
 
-    void setInputReply(const MessagePtr &message);
     void showReplyThreadPopup(const MessagePtr &message);
     bool canReplyToMessages() const;
 
@@ -446,6 +448,8 @@ private:
     LimitedQueue<MessageLayoutPtr> messages_;
 
     pajlada::Signals::SignalHolder signalHolder_;
+
+    MessageActionMenu *actionMenu_{nullptr};
 
     // channelConnections_ will be cleared when the underlying channel of the channelview changes
     pajlada::Signals::SignalHolder channelConnections_;

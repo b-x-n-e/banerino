@@ -406,9 +406,13 @@ SettingWidget *SettingWidget::dropdown(
 }
 
 SettingWidget *SettingWidget::colorButton(const QString &label,
-                                          QStringSetting &setting)
+                                          QStringSetting &setting,
+                                          std::function<QColor()> fallbackColor)
 {
     QColor color(setting.getValue());
+    if (!color.isValid() && fallbackColor) {
+        color = fallbackColor();
+    }
     auto *widget = new SettingWidget(label);
 
     auto *lbl = new QLabel(label + ":");
@@ -422,8 +426,12 @@ SettingWidget *SettingWidget::colorButton(const QString &label,
 
     // update when setting changes
     setting.connect(
-        [colorButton](const QString &value, const auto &) {
-            colorButton->setColor(QColor(value));
+        [colorButton, fallbackColor](const QString &value, const auto &) {
+            QColor c(value);
+            if (!c.isValid() && fallbackColor) {
+                c = fallbackColor();
+            }
+            colorButton->setColor(c);
         },
         widget->managedConnections);
 

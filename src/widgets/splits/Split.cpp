@@ -43,6 +43,8 @@
 #include "widgets/splits/SplitHeader.hpp"
 #include "widgets/splits/SplitInput.hpp"
 #include "widgets/splits/SplitOverlay.hpp"
+#include "widgets/splits/PinnedMessageWidget.hpp"
+#include "widgets/splits/PredictionBanner.hpp"
 #include "widgets/Window.hpp"
 
 #include <QApplication>
@@ -97,6 +99,9 @@ Split::Split(QWidget *parent)
                             getSettings()->scrollbackSplitLimit))
     , input_(new SplitInput(this))
     , overlay_(new SplitOverlay(this))
+    , pinnedMessage_(new PinnedMessageWidget(this))
+    , predictionBanner_(new PredictionBanner(this))
+    , pollBanner_(new PollBanner(this))
 {
     this->setMouseTracking(true);
     this->view_->setPausable(true);
@@ -107,6 +112,9 @@ Split::Split(QWidget *parent)
     this->vbox_->setContentsMargins(1, 1, 1, 1);
 
     this->vbox_->addWidget(this->header_);
+    this->vbox_->addWidget(this->pinnedMessage_);
+    this->vbox_->addWidget(this->predictionBanner_);
+    this->vbox_->addWidget(this->pollBanner_);
     this->vbox_->addWidget(this->view_, 1);
     this->vbox_->addWidget(this->input_);
 
@@ -957,6 +965,10 @@ void Split::setChannel(IndirectChannel newChannel)
     this->header_->updateIcons();
     this->header_->updateChannelText();
     this->header_->updateRoomModes();
+
+    this->pinnedMessage_->setChannel(newChannel.get());
+    this->predictionBanner_->setChannel(newChannel.get());
+    this->pollBanner_->setChannel(newChannel.get());
 
     this->channelSignalHolder_.managedConnect(
         this->channel_.get()->displayNameChanged, [this] {

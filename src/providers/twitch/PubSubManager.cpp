@@ -110,6 +110,17 @@ void PubSub::listenToChannelPointRewards(const QString &channelID)
     this->private_->subscribe(TopicData{.topic = std::move(topic)});
 }
 
+void PubSub::listenToUserPointBalance(const QString &userID)
+{
+    static const QString topicFormat("community-points-user-v1.%1");
+    assert(!userID.isEmpty());
+
+    auto topic = topicFormat.arg(userID);
+
+    qCDebug(chatterinoPubSub) << "Listen to topic" << topic;
+    this->private_->subscribe(TopicData{.topic = std::move(topic)});
+}
+
 void PubSub::reconnect()
 {
     this->private_->reconnect();

@@ -50,6 +50,11 @@ public:
 
     Theme(const Paths &paths);
 
+    struct {
+        QPixmap image;
+        float opacity = 0.15f;
+    } background;
+
     bool isLightTheme() const;
     bool isSystemTheme() const;
 
@@ -106,6 +111,7 @@ public:
         MessageBackgrounds backgrounds;
 
         QColor disabled;
+        QColor history;
         QColor selection;
 
         QColor highlightAnimationStart;
@@ -117,6 +123,7 @@ public:
         MessageBackgrounds backgrounds;
 
         QColor disabled;
+        QColor history;
         QColor selection;
         QColor background;
     } overlayMessages;

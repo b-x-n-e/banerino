@@ -473,11 +473,15 @@ struct HelixPollChoice {
     QString id;
     QString title;
     int votes;
+    int channelPointsVotes;
+    int bitsVotes;
 
     explicit HelixPollChoice(const QJsonObject &jsonObject)
         : id(jsonObject.value("id").toString())
         , title(jsonObject.value("title").toString())
         , votes(jsonObject.value("votes").toInt())
+        , channelPointsVotes(jsonObject.value("channel_points_votes").toInt())
+        , bitsVotes(jsonObject.value("bits_votes").toInt())
     {
     }
 };
@@ -487,11 +491,21 @@ struct HelixPoll {
     QString title;
     std::vector<HelixPollChoice> choices;
     QString status;
+    int duration;
+    QDateTime startedAt;
+    QDateTime endedAt;
+    bool channelPointsVotingEnabled;
+    int channelPointsPerVote;
 
     explicit HelixPoll(const QJsonObject &jsonObject)
         : id(jsonObject.value("id").toString())
         , title(jsonObject.value("title").toString())
         , status(jsonObject.value("status").toString())
+        , duration(jsonObject.value("duration").toInt())
+        , startedAt(QDateTime::fromString(jsonObject.value("started_at").toString(), Qt::ISODate))
+        , endedAt(QDateTime::fromString(jsonObject.value("ended_at").toString(), Qt::ISODate))
+        , channelPointsVotingEnabled(jsonObject.value("channel_points_voting_enabled").toBool())
+        , channelPointsPerVote(jsonObject.value("channel_points_per_vote").toInt())
     {
         const auto &data = jsonObject.value("choices").toArray();
         this->choices.reserve(data.size());

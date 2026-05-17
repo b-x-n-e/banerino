@@ -40,7 +40,15 @@ namespace chatterino {
 
 void TwitchBadges::loadTwitchBadges(std::optional<ChannelPtr> messageChannel)
 {
-    assert(this->loaded_ == false);
+    // If badges have already been loaded, don't reload.
+    // This can happen when the user presses F5 to reload emotes.
+    {
+        std::shared_lock loadedLock(this->loadedMutex_);
+        if (this->loaded_)
+        {
+            return;
+        }
+    }
 
     getHelix()->getGlobalBadges(
         [this, messageChannel](auto globalBadges) {
@@ -154,7 +162,10 @@ void TwitchBadges::loaded()
 {
     std::unique_lock loadedLock(this->loadedMutex_);
 
-    assert(this->loaded_ == false);
+    if (this->loaded_)
+    {
+        return;
+    }
 
     this->loaded_ = true;
 

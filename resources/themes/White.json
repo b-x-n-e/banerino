@@ -11,6 +11,7 @@
         "regular": "#ffffff"
       },
       "disabled": "#99ffffff",
+      "history": "#00000000",
       "highlightAnimationEnd": "#00141414",
       "highlightAnimationStart": "#6e141414",
       "selection": "#40000000",
@@ -28,6 +29,7 @@
         "regular": "transparent"
       },
       "disabled": "#64000000",
+      "history": "#00000000",
       "selection": "#40ffffff",
       "textColors": {
         "caret": "#ffffff",
@@ -90,11 +92,11 @@
           "unfocused": "#ffffff"
         },
         "line": {
-          "hover": "#bbbbbb",
-          "regular": "#bbbbbb",
-          "unfocused": "#bbbbbb"
+          "regular": "#aaaaaa",
+          "hover": "#aaaaaa",
+          "unfocused": "#aaaaaa"
         },
-        "text": "#222222"
+        "text": "#000000"
       },
       "regular": {
         "backgrounds": {

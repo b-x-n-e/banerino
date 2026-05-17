@@ -269,7 +269,7 @@ MessagePaintResult MessageLayout::paint(const MessagePaintContext &ctx)
                 pixmap->width(),
                 pixmap->height(),
             },
-            ctx.messageColors.disabled);
+            ctx.messageColors.history);
     }
 
     if (!ctx.isMentions &&

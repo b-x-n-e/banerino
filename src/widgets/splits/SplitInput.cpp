@@ -215,6 +215,13 @@ void SplitInput::initLayout()
         this->ui_.textEditLength->setAlignment(Qt::AlignRight);
         hbox->addWidget(this->ui_.textEditLength);
 
+        this->ui_.channelPointsLabel = new QLabel();
+        this->ui_.channelPointsLabel->setAlignment(Qt::AlignRight);
+        this->ui_.channelPointsLabel->setStyleSheet("color: #00d27c; font-weight: bold; margin-right: 4px;");
+        this->ui_.channelPointsLabel->setHidden(true);
+        this->ui_.channelPointsLabel->setToolTip("Channel Points Balance");
+        hbox->addWidget(this->ui_.channelPointsLabel);
+
         this->ui_.sendWaitStatus = new QLabel();
         this->ui_.sendWaitStatus->setAlignment(Qt::AlignRight);
         this->ui_.sendWaitStatus->setHidden(true);
@@ -1233,9 +1240,10 @@ void SplitInput::paintEvent(QPaintEvent * /*event*/)
     auto inputBoxRect = inputWrap->geometry();
     inputBoxRect.setSize(inputBoxRect.size() - QSize{1, 1});
 
+    painter.setRenderHint(QPainter::Antialiasing);
     painter.setBrush({this->theme->splits.input.background});
     painter.setPen(borderColor);
-    painter.drawRect(inputBoxRect);
+    painter.drawRoundedRect(inputBoxRect, 4.0, 4.0);
 
     if (this->enableInlineReplying_ && this->replyTarget_ != nullptr)
     {
@@ -1244,7 +1252,7 @@ void SplitInput::paintEvent(QPaintEvent * /*event*/)
 
         painter.setBrush(this->theme->splits.input.background);
         painter.setPen(borderColor);
-        painter.drawRect(replyRect);
+        painter.drawRoundedRect(replyRect, 4.0, 4.0);
 
         QPoint replyLabelBorderStart(
             replyRect.x(),
@@ -1544,6 +1552,35 @@ void SplitInput::updateChannel()
     auto selected = this->split_->getSelectedChannel();
     this->ui_.textEdit->setCompleter(new QCompleter(selected->completionModel));
     this->inputHighlighter->setChannel(selected);
+
+    // Hide channel points label by default
+    this->ui_.channelPointsLabel->setHidden(true);
+    
+    if (auto *tc = dynamic_cast<TwitchChannel *>(selected.get()))
+    {
+        this->channelConnections_.managedConnect(
+            tc->channelPointsBalanceUpdated, [this](int balance) {
+                if (balance < 0) {
+                    this->ui_.channelPointsLabel->setHidden(true);
+                    return;
+                }
+                
+                QString formatted;
+                if (balance >= 1000000) {
+                    formatted = QString("%1M").arg(balance / 1000000.0, 0, 'f', 1);
+                } else if (balance >= 1000) {
+                    formatted = QString("%1K").arg(balance / 1000.0, 0, 'f', 1);
+                } else {
+                    formatted = QString::number(balance);
+                }
+                this->ui_.channelPointsLabel->setText(QString("<img src=':/buttons/channelPoints.svg' width='14' height='14' align='middle'> <span style='color: #9147ff; font-weight: bold; font-size: 11px;'>%1</span>").arg(formatted));
+                this->ui_.channelPointsLabel->setStyleSheet("padding-right: 4px;");
+                this->ui_.channelPointsLabel->setHidden(false);
+            });
+            
+        // Trigger a refresh if we're joining
+        tc->refreshChannelPointsBalance();
+    }
 }
 
 }  // namespace chatterino

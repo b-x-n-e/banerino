@@ -7,6 +7,9 @@
 #include "common/Aliases.hpp"
 #include "common/Channel.hpp"
 #include "widgets/BaseWidget.hpp"
+#include "widgets/splits/PinnedMessageWidget.hpp"
+#include "widgets/splits/PredictionBanner.hpp"
+#include "widgets/splits/PollBanner.hpp"
 #include "widgets/splits/SplitCommon.hpp"
 
 #include <boost/signals2.hpp>
@@ -26,6 +29,8 @@ class SplitContainer;
 class SplitOverlay;
 class SelectChannelDialog;
 class OverlayWindow;
+class PinnedMessageWidget;
+class PredictionBanner;
 
 // Each ChatWidget consists of three sub-elements that handle their own part of
 // the chat widget: ChatWidgetHeader
@@ -168,6 +173,9 @@ private:
     ChannelView *const view_;
     SplitInput *const input_;
     SplitOverlay *const overlay_;
+    PinnedMessageWidget *const pinnedMessage_;
+    PredictionBanner *const predictionBanner_;
+    PollBanner *const pollBanner_;
 
     QPointer<OverlayWindow> overlayWindow_;
 

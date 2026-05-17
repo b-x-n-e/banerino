@@ -167,6 +167,7 @@ protected:
         QHBoxLayout *inputHbox;
         ResizingTextEdit *textEdit;
         QLabel *textEditLength;
+        QLabel *channelPointsLabel;
         LabelButton *sendButton;
         QLabel *sendWaitStatus;
         SvgButton *emoteButton;

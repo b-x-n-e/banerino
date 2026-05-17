@@ -32,8 +32,8 @@ class PubSubManagerPrivate;
  */
 class PubSub
 {
-    template <typename T>
-    using Signal = pajlada::Signals::Signal<T>;
+    template <typename... T>
+    using Signal = pajlada::Signals::Signal<T...>;
 
 public:
     PubSub(const QString &host,
@@ -47,6 +47,7 @@ public:
 
     struct {
         Signal<const QJsonObject &> redeemed;
+        Signal<int, QString> userBalanceUpdated;
     } pointReward;
 
     /**
@@ -56,6 +57,13 @@ public:
      * PubSub topic: community-points-channel-v1.{channelID}
      */
     void listenToChannelPointRewards(const QString &channelID);
+
+    /**
+     * Listen to user-specific channel point balance updates.
+     *
+     * PubSub topic: community-points-user-v1.{userID}
+     */
+    void listenToUserPointBalance(const QString &userID);
 
     void reconnect();
 

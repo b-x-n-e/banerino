@@ -9,6 +9,7 @@
 #include "common/QLogging.hpp"
 #include "singletons/Paths.hpp"
 #include "singletons/Resources.hpp"
+#include "singletons/Settings.hpp"
 #include "singletons/WindowManager.hpp"
 
 #include <QApplication>
@@ -151,6 +152,7 @@ void parseMessages(const QJsonObject &messages,
                             messagesFallback["backgrounds"_L1].toObject(),
                             theme.messages);
     parseColor(theme, messages, disabled);
+    parseColor(theme, messages, history);
     parseColor(theme, messages, selection);
     parseColor(theme, messages, highlightAnimationStart);
     parseColor(theme, messages, highlightAnimationEnd);
@@ -168,6 +170,7 @@ void parseOverlayMessages(const QJsonObject &overlayMessages,
         overlayMessagesFallback["backgrounds"_L1].toObject(),
         theme.overlayMessages);
     parseColor(theme, overlayMessages, disabled);
+    parseColor(theme, overlayMessages, history);
     parseColor(theme, overlayMessages, selection);
     parseColor(theme, overlayMessages, background);
 }
@@ -289,9 +292,19 @@ const std::vector<ThemeDescriptor> Theme::builtInThemes{
         .name = "Light",
     },
     {
-        .key = "Dark",
-        .path = ":/themes/Dark.json",
-        .name = "Dark",
+        .key = "Twitch",
+        .path = ":/themes/Twitch.json",
+        .name = "Twitch",
+    },
+    {
+        .key = "Midnight",
+        .path = ":/themes/Midnight.json",
+        .name = "Midnight",
+    },
+    {
+        .key = "Ruby",
+        .path = ":/themes/Ruby.json",
+        .name = "Ruby",
     },
     {
         .key = "Black",
@@ -300,7 +313,7 @@ const std::vector<ThemeDescriptor> Theme::builtInThemes{
     },
 };
 
-// Dark is our default & fallback theme
+// Twitch is our default & fallback theme
 const ThemeDescriptor Theme::fallbackTheme = Theme::builtInThemes.at(2);
 
 bool Theme::isLightTheme() const
@@ -518,7 +531,7 @@ void Theme::parseFrom(const QJsonObject &root, bool isCustomTheme)
         // Only attempt to load a fallback theme if the theme we're loading is a custom theme
         auto fallbackThemeName =
             root["metadata"_L1]["fallbackTheme"_L1].toString(
-                this->isLightTheme() ? "Light" : "Dark");
+                this->isLightTheme() ? "Light" : "Twitch");
         for (const auto &theme : Theme::builtInThemes)
         {
             if (fallbackThemeName.compare(theme.key, Qt::CaseInsensitive) == 0)
@@ -530,6 +543,95 @@ void Theme::parseFrom(const QJsonObject &root, bool isCustomTheme)
     }
 
     parseColors(root, fallbackTheme.value_or(QJsonObject()), *this);
+
+    auto &s = *getSettings();
+
+    // Load background image first, so we can make chat transparent by default
+    // if an image is provided, preventing the chat background from interfering.
+    QString bgPath = s.customBackgroundImage.getValue();
+    if (!bgPath.isEmpty() && QFile::exists(bgPath)) {
+        this->background.image.load(bgPath);
+        // Make the chat backgrounds transparent so the image shows through
+        this->messages.backgrounds.regular = Qt::transparent;
+        this->messages.backgrounds.alternate = Qt::transparent;
+    } else {
+        this->background.image = QPixmap();
+    }
+    this->background.opacity = qBound(0, s.customBackgroundImageOpacity.getValue(), 100) / 100.0f;
+
+    if (!s.customAccentColor.getValue().isEmpty()) {
+        QColor accent(s.customAccentColor.getValue());
+        if (accent.isValid()) {
+            this->accent = accent;
+            this->tabs.selected.backgrounds.regular = accent;
+            this->tabs.selected.backgrounds.hover = accent;
+            this->tabs.selected.backgrounds.unfocused = accent;
+        }
+    }
+    if (!s.customWindowBackground.getValue().isEmpty()) {
+        QColor windowBg(s.customWindowBackground.getValue());
+        if (windowBg.isValid()) {
+            this->window.background = windowBg;
+            this->splits.background = windowBg;
+        }
+    }
+    if (!s.customLiveButtonColor.getValue().isEmpty()) {
+        QColor liveColor(s.customLiveButtonColor.getValue());
+        if (liveColor.isValid()) {
+            this->tabs.liveIndicator = liveColor;
+        }
+    }
+    if (!s.customChatFieldColor.getValue().isEmpty()) {
+        QColor chatFieldBg(s.customChatFieldColor.getValue());
+        if (chatFieldBg.isValid()) {
+            this->splits.input.background = chatFieldBg;
+        }
+    }
+
+    if (!s.customSplitBackground.getValue().isEmpty()) {
+        QColor c(s.customSplitBackground.getValue());
+        if (c.isValid()) this->splits.background = c;
+    }
+    if (!s.customSplitHeaderBackground.getValue().isEmpty()) {
+        QColor c(s.customSplitHeaderBackground.getValue());
+        if (c.isValid()) this->splits.header.background = c;
+    }
+    if (!s.customSplitHeaderBorder.getValue().isEmpty()) {
+        QColor c(s.customSplitHeaderBorder.getValue());
+        if (c.isValid()) this->splits.header.border = c;
+    }
+    if (!s.customSplitHeaderText.getValue().isEmpty()) {
+        QColor c(s.customSplitHeaderText.getValue());
+        if (c.isValid()) this->splits.header.text = c;
+    }
+    if (!s.customMessageSeparator.getValue().isEmpty()) {
+        QColor c(s.customMessageSeparator.getValue());
+        if (c.isValid()) this->splits.messageSeperator = c;
+    }
+    if (!s.customMessageBackground.getValue().isEmpty()) {
+        QColor c(s.customMessageBackground.getValue());
+        if (c.isValid()) this->messages.backgrounds.regular = c;
+    }
+    if (!s.customMessageAlternateBackground.getValue().isEmpty()) {
+        QColor c(s.customMessageAlternateBackground.getValue());
+        if (c.isValid()) this->messages.backgrounds.alternate = c;
+    }
+    if (!s.customTextColor.getValue().isEmpty()) {
+        QColor c(s.customTextColor.getValue());
+        if (c.isValid()) this->messages.textColors.regular = c;
+    }
+    if (!s.customScrollbarThumb.getValue().isEmpty()) {
+        QColor c(s.customScrollbarThumb.getValue());
+        if (c.isValid()) this->scrollbars.thumb = c;
+    }
+    if (!s.customScrollbarBackground.getValue().isEmpty()) {
+        QColor c(s.customScrollbarBackground.getValue());
+        if (c.isValid()) this->scrollbars.background = c;
+    }
+    if (!s.customTabDividerLine.getValue().isEmpty()) {
+        QColor c(s.customTabDividerLine.getValue());
+        if (c.isValid()) this->tabs.dividerLine = c;
+    }
 
     this->splits.input.styleSheet = uR"(
         background: %1;

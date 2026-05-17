@@ -19,6 +19,7 @@ void MessageColors::applyTheme(Theme *theme, bool isOverlay,
         this->alternateBg = src.backgrounds.alternate;
 
         this->disabled = src.disabled;
+        this->history = src.history;
         this->selection = src.selection;
 
         this->regularText = src.textColors.regular;

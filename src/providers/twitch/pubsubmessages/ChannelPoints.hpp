@@ -26,6 +26,25 @@ struct PubSubCommunityPointsChannelV1Message {
     PubSubCommunityPointsChannelV1Message(const QJsonObject &root);
 };
 
+struct PubSubCommunityPointsUserV1Message {
+    enum class Type {
+        PointsEarned,
+        RewardRedeemed,
+        PointsSpent,
+
+        INVALID,
+    };
+
+    QString typeString;
+    Type type = Type::INVALID;
+
+    QJsonObject data;
+    int balance = -1;
+    QString channelId;
+
+    PubSubCommunityPointsUserV1Message(const QJsonObject &root);
+};
+
 }  // namespace chatterino
 
 template <>
@@ -41,6 +60,24 @@ constexpr magic_enum::customize::customize_t magic_enum::customize::enum_name<
         case chatterino::PubSubCommunityPointsChannelV1Message::Type::
             RewardRedeemed:
             return "reward-redeemed";
+        default:
+            return default_tag;
+    }
+}
+
+template <>
+constexpr magic_enum::customize::customize_t magic_enum::customize::enum_name<
+    chatterino::PubSubCommunityPointsUserV1Message::Type>(
+    chatterino::PubSubCommunityPointsUserV1Message::Type value) noexcept
+{
+    switch (value)
+    {
+        case chatterino::PubSubCommunityPointsUserV1Message::Type::PointsEarned:
+            return "points-earned";
+        case chatterino::PubSubCommunityPointsUserV1Message::Type::RewardRedeemed:
+            return "reward-redeemed";
+        case chatterino::PubSubCommunityPointsUserV1Message::Type::PointsSpent:
+            return "points-spent";
         default:
             return default_tag;
     }

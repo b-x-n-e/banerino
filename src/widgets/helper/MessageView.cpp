@@ -9,12 +9,26 @@
 #include "messages/layouts/MessageLayoutElement.hpp"
 #include "messages/MessageElement.hpp"
 #include "messages/Selection.hpp"
+
+#include <optional>
 #include "providers/colors/ColorProvider.hpp"
 #include "singletons/Theme.hpp"
 #include "singletons/WindowManager.hpp"
+#include "util/WidgetHelpers.hpp"
+#include "widgets/TooltipWidget.hpp"
+#include "messages/Emote.hpp"
+
+
 
 #include <QApplication>
+#include <QHelpEvent>
+#include <QMouseEvent>
 #include <QPainter>
+#include <QToolTip>
+#include "providers/links/LinkResolver.hpp"
+#include "singletons/Settings.hpp"
+
+
 
 namespace {
 
@@ -62,6 +76,30 @@ void MessageView::setMessage(const MessagePtr &message)
     this->createMessageLayout();
     this->layoutMessage();
 }
+
+void MessageView::setMessageDirect(const MessagePtr &message)
+{
+    if (!message)
+    {
+        return;
+    }
+
+    this->message_ = message;
+    this->createMessageLayout();
+    this->layoutMessage();
+}
+
+void MessageView::setFlags(MessageElementFlags flags)
+{
+    this->customFlags_ = flags;
+    this->layoutMessage();
+}
+
+void MessageView::setTooltipWidget(TooltipWidget *tooltipWidget)
+{
+    this->tooltipWidget_ = tooltipWidget;
+}
+
 
 void MessageView::clearMessage()
 {
@@ -124,10 +162,11 @@ void MessageView::layoutMessage()
         return;
     }
 
+    auto flags = this->customFlags_.value_or(MESSAGE_FLAGS);
     bool updateRequired = this->messageLayout_->layout(
         {
             .messageColors = this->messageColors_,
-            .flags = MESSAGE_FLAGS,
+            .flags = flags,
             .width = this->width_,
             .scale = this->scale(),
             .imageScale =
@@ -144,4 +183,146 @@ void MessageView::layoutMessage()
     }
 }
 
+bool MessageView::event(QEvent *event)
+{
+    if (event->type() == QEvent::ToolTip)
+    {
+        auto *helpEvent = static_cast<QHelpEvent *>(event);
+        if (this->messageLayout_)
+        {
+            auto *element = this->messageLayout_->getElementAt(helpEvent->pos());
+            if (element)
+            {
+                const auto &link = element->getLink();
+                if (link.type == Link::Url)
+                {
+                    if (this->tooltipWidget_)
+                    {
+                        this->resolveLink(link.value, helpEvent->globalPos());
+                        this->tooltipWidget_->setOne({nullptr, link.value});
+                        this->tooltipWidget_->moveTo(helpEvent->globalPos(),
+                                                     widgets::BoundsChecking::DesiredPosition);
+                        this->tooltipWidget_->show();
+                    }
+                    else
+                    {
+                        QToolTip::showText(helpEvent->globalPos(), link.value, this);
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return BaseWidget::event(event);
+}
+
+int MessageView::getHeight() const
+{
+    return this->messageLayout_ ? this->messageLayout_->getHeight() : 0;
+}
+
+
+void MessageView::mousePressEvent(QMouseEvent *event)
+{
+    if (this->messageLayout_)
+    {
+        auto *element = this->messageLayout_->getElementAt(event->pos());
+        if (element && element->getLink().type != Link::None)
+        {
+            event->accept();
+            return;
+        }
+    }
+    this->BaseWidget::mousePressEvent(event);
+}
+
+void MessageView::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton)
+    {
+        if (this->messageLayout_)
+        {
+            auto *element = this->messageLayout_->getElementAt(event->pos());
+            if (element)
+            {
+                const auto &link = element->getLink();
+                if (link.type != Link::None)
+                {
+                    this->linkClicked(link);
+                }
+            }
+        }
+    }
+    this->BaseWidget::mouseReleaseEvent(event);
+}
+
+void MessageView::mouseMoveEvent(QMouseEvent *event)
+{
+    if (this->messageLayout_)
+    {
+        auto *element = this->messageLayout_->getElementAt(event->pos());
+        if (element && element->getLink().type != Link::None)
+        {
+            this->setCursor(Qt::PointingHandCursor);
+        }
+        else
+        {
+            this->setCursor(Qt::ArrowCursor);
+            if (this->tooltipWidget_) {
+                this->tooltipWidget_->hide();
+            }
+        }
+    }
+    this->BaseWidget::mouseMoveEvent(event);
+}
+
+void MessageView::leaveEvent(QEvent *event)
+{
+    this->setCursor(Qt::ArrowCursor);
+    if (this->tooltipWidget_) {
+        this->tooltipWidget_->hide();
+    }
+    this->BaseWidget::leaveEvent(event);
+}
+
+void MessageView::resolveLink(const QString &url, const QPoint &pos)
+{
+    if (!getSettings()->linkInfoTooltip)
+    {
+        return;
+    }
+
+    auto &info = this->linkInfos_[url];
+    if (!info)
+    {
+        info = std::make_shared<LinkInfo>(url);
+    }
+
+    if (info->isPending())
+    {
+        getApp()->getLinkResolver()->resolve(info.get());
+    }
+
+    auto updateTooltip = [this, info, pos] {
+        if (this->tooltipWidget_ && info->isResolved() && this->isVisible())
+        {
+            this->tooltipWidget_->setOne({info->thumbnail(), info->tooltip()});
+        }
+    };
+
+    if (info->isResolved())
+    {
+        updateTooltip();
+    }
+    else
+    {
+        QObject::connect(info.get(), &LinkInfo::stateChanged, this,
+                         [updateTooltip](auto) {
+                             updateTooltip();
+                         });
+    }
+}
+
+
 }  // namespace chatterino
+

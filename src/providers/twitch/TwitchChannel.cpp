@@ -62,6 +62,8 @@
 #include <QStringBuilder>
 #include <QThread>
 #include <QTimer>
+#include <QUuid>
+#include <QUrlQuery>
 #include <rapidjson/document.h>
 
 #include <algorithm>
@@ -187,6 +189,18 @@ TwitchChannel::TwitchChannel(const QString &name, bool isWatching)
     });
     this->threadClearTimer_.start(5 * 60 * 1000);
 
+    QObject::connect(&this->pinnedMessageTimer_, &QTimer::timeout, [this] {
+        this->fetchPinnedMessage();
+    });
+    this->pinnedMessageTimer_.start(10 * 1000);
+    // Fetch immediately on construction
+    QMetaObject::invokeMethod(
+        &this->lifetimeGuard_,
+        [this] {
+            this->fetchPinnedMessage();
+        },
+        Qt::QueuedConnection);
+
     this->signalHolder_.managedConnect(
         getApp()->getAccounts()->twitch.emotesReloaded,
         [this](auto *caller, const auto &result) {
@@ -221,6 +235,15 @@ TwitchChannel::TwitchChannel(const QString &name, bool isWatching)
                      &this->lifetimeGuard_, [this] {
                          this->syncSendWaitTimer();
                      });
+
+    this->signalHolder_.managedConnect(
+        getApp()->getTwitchPubSub()->pointReward.userBalanceUpdated,
+        [this](int balance, const QString &channelId) {
+            if (channelId == this->roomId())
+            {
+                this->channelPointsBalanceUpdated.invoke(balance);
+            }
+        });
 
     // debugging
 #if 0
@@ -258,6 +281,621 @@ void TwitchChannel::initialize()
 {
     this->refreshChatters();
     this->refreshBadges();
+}
+
+void TwitchChannel::fetchPinnedMessage()
+{
+    if (this->getName().isEmpty())
+    {
+        return;
+    }
+
+    static const QString CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    static const QString GQL_QUERY =
+        u"query GetPins($login:String!){user(login:$login){channel{"
+        u"pinnedChatMessages(first:1){edges{node{id updatedAt pinnedBy{login displayName} pinnedMessage{"
+        u"id sentAt content{text}sender{id login displayName chatColor}}}}}}}}"_s;
+
+    QJsonObject payload{
+        {"operationName", "GetPins"},
+        {"query", GQL_QUERY},
+        {"variables", QJsonObject{{"login", this->getName()}}},
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", CLIENT_ID)
+        .json(payload)
+        .timeout(10000)
+        .onSuccess([this](const NetworkResult &result) {
+            auto json = result.parseJson();
+            auto edges = json["data"]
+                             .toObject()["user"]
+                             .toObject()["channel"]
+                             .toObject()["pinnedChatMessages"]
+                             .toObject()["edges"]
+                             .toArray();
+
+            if (edges.isEmpty())
+            {
+                if (this->pinnedMessage_.has_value())
+                {
+                    this->pinnedMessage_ = std::nullopt;
+                    this->pinnedMessageUpdated.invoke();
+                }
+                return;
+            }
+
+            auto node = edges[0].toObject()["node"].toObject();
+            auto pinId = node["id"].toString();
+            auto pm = node["pinnedMessage"].toObject();
+
+            auto pinner = node["pinnedBy"].toObject();
+
+            TwitchPinnedMessage newPin{
+                .pinId = pinId,
+                .messageId = pm["id"].toString(),
+                .text = pm["content"].toObject()["text"].toString(),
+                .senderId = pm["sender"].toObject()["id"].toString(),
+                .senderLogin = pm["sender"].toObject()["login"].toString(),
+                .senderName =
+                    pm["sender"].toObject()["displayName"].toString(),
+                .chatColor = pm["sender"].toObject()["chatColor"].toString(),
+                .sentAt = QDateTime::fromString(pm["sentAt"].toString(),
+                                                Qt::ISODate),
+                .pinnedAt = QDateTime::fromString(node["updatedAt"].toString(),
+                                                  Qt::ISODate),
+                .pinnerLogin = pinner["login"].toString(),
+                .pinnerName = pinner["displayName"].toString(),
+            };
+
+            if (!this->pinnedMessage_.has_value() ||
+                *this->pinnedMessage_ != newPin)
+            {
+                this->pinnedMessage_ = std::move(newPin);
+                this->pinnedMessageUpdated.invoke();
+            }
+        })
+        .onError([](const NetworkResult & /*result*/) {
+            // Silently ignore - channel may not exist or API may be down
+        })
+        .execute();
+}
+
+void TwitchChannel::pinMessage(const QString &messageID)
+{
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon())
+    {
+        this->addSystemMessage("You must be logged in to pin a message.");
+        return;
+    }
+
+    auto rid = this->roomId();
+    if (rid.isEmpty())
+    {
+        return;
+    }
+
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        this->addSystemMessage(
+            "No GQL auth token configured. Go to Settings > Banerino > "
+            "Twitch GQL Authentication to set up your token.");
+        return;
+    }
+
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonObject payload{
+        {"operationName", "PinChatMessage"},
+        {"variables", QJsonObject{
+            {"input", QJsonObject{
+                {"channelID", this->roomId()},
+                {"messageID", messageID},
+                {"type", "MOD"}
+            }}
+        }},
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "214191369c21f1ad67ac074795d53832329c70e4088c979040c9f86334a7d736"}
+            }}
+        }}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([this](const NetworkResult &) {
+            QTimer::singleShot(500, [this] {
+                this->fetchPinnedMessage();
+            });
+        })
+        .onError([this](const NetworkResult &result) {
+            this->addSystemMessage("Failed to pin message: " + result.formatError());
+        })
+        .execute();
+}
+
+
+
+void TwitchChannel::unpinMessage()
+{
+    if (!this->pinnedMessage_.has_value())
+    {
+        return;
+    }
+
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon())
+    {
+        this->addSystemMessage("You must be logged in to unpin a message.");
+        return;
+    }
+
+    auto pinId = this->pinnedMessage_->pinId;
+
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        this->addSystemMessage(
+            "No GQL auth token configured. Go to Settings > Banerino > "
+            "Twitch GQL Authentication to set up your token.");
+        return;
+    }
+
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonObject payload{
+        {"operationName", "unpinChatMessage"},
+        {"variables", QJsonObject{
+            {"input", QJsonObject{
+                {"id", pinId},
+                {"reason", "UNPIN"}
+            }}
+        }},
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "86409b9c86510bdc9f2c6d8e58fdc4041963c001de53577160ab649e03334511"}
+            }}
+        }}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([this](const NetworkResult &) {
+            this->pinnedMessage_ = std::nullopt;
+            this->pinnedMessageUpdated.invoke();
+        })
+        .onError([this](const NetworkResult &result) {
+            this->addSystemMessage("Failed to unpin message: " + result.formatError());
+        })
+        .execute();
+}
+
+void TwitchChannel::createPoll(const QString &title, const QStringList &choices, int durationSeconds,
+                               int pointsPerVote, std::function<void()> successCallback,
+                               std::function<void(const QString &)> failureCallback)
+{
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon())
+    {
+        failureCallback("You must be logged in to create a poll.");
+        return;
+    }
+
+    auto rid = this->roomId();
+    if (rid.isEmpty())
+    {
+        failureCallback("Invalid channel ID.");
+        return;
+    }
+
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        failureCallback("No GQL auth token configured. Go to Settings > Banerino > Twitch GQL Authentication to set up your token.");
+        return;
+    }
+
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonArray choicesArray;
+    for (const auto &choice : choices)
+    {
+        choicesArray.append(QJsonObject{{"title", choice}});
+    }
+
+    QJsonObject inputObj{
+        {"title", title},
+        {"durationSeconds", durationSeconds},
+        {"ownedBy", rid},
+        {"choices", choicesArray}
+    };
+
+    if (pointsPerVote > 0)
+    {
+        inputObj["channelPointsPerVote"] = pointsPerVote;
+    }
+
+    QJsonObject payload{
+        {"operationName", "CreatePoll"},
+        {"variables", QJsonObject{
+            {"input", inputObj}
+        }},
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "4b1461a13fe166a59044961db192747d606f71a89abc3bfdecf79fe862d205cf"}
+            }}
+        }}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([successCallback, failureCallback](const NetworkResult &result) {
+            auto obj = result.parseJson();
+            if (obj.contains("errors")) {
+                auto errors = obj["errors"].toArray();
+                if (!errors.isEmpty()) {
+                    auto msg = errors.first().toObject()["message"].toString();
+                    failureCallback(msg);
+                    return;
+                }
+            }
+            successCallback();
+        })
+        .onError([failureCallback](const NetworkResult &result) {
+            failureCallback(result.formatError());
+        })
+        .execute();
+}
+
+void TwitchChannel::voteInPoll(const QString &pollId, const QString &choiceId,
+                               std::function<void()> successCallback,
+                               std::function<void(const QString &)> failureCallback)
+{
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon())
+    {
+        failureCallback("You must be logged in to vote.");
+        return;
+    }
+
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        failureCallback("No GQL auth token configured. Go to Settings > Banerino > Twitch GQL Authentication to set up your token.");
+        return;
+    }
+
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    // Generate a random UUID for the voteID
+    QString voteId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+    QJsonObject inputObj{
+        {"choiceID", choiceId},
+        {"pollID", pollId},
+        {"userID", currentUser->getUserId()},
+        {"voteID", voteId}
+    };
+
+    QJsonObject payload{
+        {"operationName", "VoteInPoll"},
+        {"variables", QJsonObject{
+            {"input", inputObj}
+        }},
+        {"query", "mutation VoteInPoll($input: VoteInPollInput!) { voteInPoll(input: $input) { error { code } } }"}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([successCallback, failureCallback](const NetworkResult &result) {
+            auto obj = result.parseJson();
+            if (obj.contains("errors")) {
+                auto errors = obj["errors"].toArray();
+                if (!errors.isEmpty()) {
+                    auto msg = errors.first().toObject()["message"].toString();
+                    failureCallback(msg);
+                    return;
+                }
+            }
+            successCallback();
+        })
+        .onError([failureCallback](const NetworkResult &result) {
+            failureCallback(result.formatError());
+        })
+        .execute();
+}
+
+void TwitchChannel::getActivePoll(std::function<void(std::optional<HelixPoll>)> successCallback,
+                                  std::function<void(const QString &)> failureCallback)
+{
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonObject payload{
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "e83188a3836c636393df3191665e543a03733d7c51d3ade3d85e42aa46c2bf55"}
+            }}
+        }},
+        {"variables", QJsonObject{
+            {"login", this->getName()}
+        }}
+    };
+
+    NetworkRequest req("https://gql.twitch.tv/gql", NetworkRequestType::Post);
+    req = std::move(req).header("Client-Id", GQL_CLIENT_ID);
+    req = std::move(req).json(payload);
+        
+    if (!gqlToken.isEmpty()) {
+        req = std::move(req).header("Authorization", "OAuth " + gqlToken);
+    }
+
+    std::move(req).onSuccess([successCallback, failureCallback](const NetworkResult &result) {
+            auto obj = result.parseJson();
+            if (obj.contains("errors")) {
+                auto errors = obj["errors"].toArray();
+                if (!errors.isEmpty()) {
+                    auto msg = errors.first().toObject()["message"].toString();
+                    failureCallback(msg);
+                    return;
+                }
+            }
+            
+            auto channelObj = obj["data"].toObject()["channel"].toObject();
+            if (!channelObj.contains("viewablePoll") || channelObj["viewablePoll"].isNull()) {
+                successCallback(std::nullopt);
+                return;
+            }
+            
+            auto pollObj = channelObj["viewablePoll"].toObject();
+            
+            QJsonObject pollObjTwitch;
+            pollObjTwitch["id"] = pollObj["id"].toString();
+            pollObjTwitch["title"] = pollObj["title"].toString();
+            pollObjTwitch["status"] = pollObj["status"].toString();
+            pollObjTwitch["duration"] = pollObj["durationSeconds"].toInt();
+            pollObjTwitch["started_at"] = pollObj["startedAt"].toString();
+            pollObjTwitch["ended_at"] = pollObj["endedAt"].toString();
+            pollObjTwitch["channel_points_voting_enabled"] = false;
+            pollObjTwitch["channel_points_per_vote"] = 0;
+
+            QJsonArray choicesArrTwitch;
+            auto choicesArray = pollObj["choices"].toArray();
+            for (auto choiceVal : choicesArray) {
+                auto choiceObj = choiceVal.toObject();
+                QJsonObject c;
+                c["id"] = choiceObj["id"].toString();
+                c["title"] = choiceObj["title"].toString();
+                auto votesObj = choiceObj["votes"].toObject();
+                c["votes"] = votesObj.contains("total") ? votesObj["total"].toInt() : choiceObj["votes"].toInt();
+                choicesArrTwitch.append(c);
+            }
+            pollObjTwitch["choices"] = choicesArrTwitch;
+            
+            HelixPoll poll(pollObjTwitch);
+            
+            successCallback(poll);
+        })
+        .onError([failureCallback](const NetworkResult &result) {
+            failureCallback(result.formatError());
+        })
+        .execute();
+}
+
+void TwitchChannel::terminatePoll(const QString &pollId,
+                                   std::function<void()> successCallback,
+                                   std::function<void(const QString &)> failureCallback)
+{
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        failureCallback("No GQL auth token configured.");
+        return;
+    }
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonObject payload{
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "2701ef0594dae5f532ce68e58cc3036a6d020755eef49927f98c14017fd819b2"}
+            }}
+        }},
+        {"variables", QJsonObject{
+            {"input", QJsonObject{
+                {"pollID", pollId}
+            }}
+        }}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([successCallback, failureCallback](const NetworkResult &result) {
+            auto obj = result.parseJson();
+            if (obj.contains("errors")) {
+                auto errors = obj["errors"].toArray();
+                if (!errors.isEmpty()) {
+                    failureCallback(errors.first().toObject()["message"].toString());
+                    return;
+                }
+            }
+            successCallback();
+        })
+        .onError([failureCallback](const NetworkResult &result) {
+            failureCallback(result.formatError());
+        })
+        .execute();
+}
+
+void TwitchChannel::archivePoll(const QString &pollId,
+                                 std::function<void()> successCallback,
+                                 std::function<void(const QString &)> failureCallback)
+{
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString gqlToken = getSettings()->gqlAuthToken;
+    if (gqlToken.isEmpty())
+    {
+        failureCallback("No GQL auth token configured.");
+        return;
+    }
+    if (gqlToken.startsWith("oauth:"))
+    {
+        gqlToken = gqlToken.mid(6);
+    }
+
+    QJsonObject payload{
+        {"extensions", QJsonObject{
+            {"persistedQuery", QJsonObject{
+                {"version", 1},
+                {"sha256Hash", "444ead3d68d94601cb66519e36c9f6c6fd9ba8b827a4299b8ed3604e57918d92"}
+            }}
+        }},
+        {"variables", QJsonObject{
+            {"input", QJsonObject{
+                {"pollID", pollId}
+            }}
+        }}
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + gqlToken)
+        .json(payload)
+        .onSuccess([successCallback, failureCallback](const NetworkResult &result) {
+            auto obj = result.parseJson();
+            if (obj.contains("errors")) {
+                auto errors = obj["errors"].toArray();
+                if (!errors.isEmpty()) {
+                    failureCallback(errors.first().toObject()["message"].toString());
+                    return;
+                }
+            }
+            successCallback();
+        })
+        .onError([failureCallback](const NetworkResult &result) {
+            failureCallback(result.formatError());
+        })
+        .execute();
+}
+
+
+const std::optional<TwitchPinnedMessage> &TwitchChannel::getPinnedMessage()
+    const
+{
+    return this->pinnedMessage_;
+}
+
+void TwitchChannel::refreshChannelPointsBalance()
+{
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon() || this->roomId().isEmpty())
+    {
+        qCDebug(chatterinoTwitch) << "Channel points: skipping (anon or empty roomId)";
+        return;
+    }
+
+    static const QString GQL_CLIENT_ID = u"kimne78kx3ncx6brgo4mv6wki5h1ko"_s;
+    QString token = getSettings()->gqlAuthToken;
+    qInfo() << "[POINTS] token =" << (token.isEmpty() ? "EMPTY" : "present") << "channel =" << this->getName();
+    if (token.isEmpty())
+    {
+        return;
+    }
+
+    if (token.startsWith("oauth:"))
+    {
+        token = token.mid(6);
+    }
+
+    QJsonObject payload{
+        {"operationName", "ChannelPointsContext"},
+        {"query",
+         "query ChannelPointsContext($channelLogin:String!){channel(name:"
+         "$channelLogin){communityPointsSettings{isEnabled}self{communityPoints{balance}}}}"},
+        {"variables", QJsonObject{{"channelLogin", this->getName()}}},
+    };
+
+    NetworkRequest("https://gql.twitch.tv/gql", NetworkRequestType::Post)
+        .header("Client-Id", GQL_CLIENT_ID)
+        .header("Authorization", "OAuth " + token)
+        .json(payload)
+
+        .timeout(10000)
+        .onSuccess([this](const NetworkResult &result) {
+            auto json = result.parseJson();
+            qInfo() << "[POINTS] response for" << this->getName() << ":" << QJsonDocument(json).toJson(QJsonDocument::Compact);
+            
+            auto channelObj = json["data"].toObject()["channel"].toObject();
+            if (channelObj.isEmpty()) {
+                qInfo() << "[POINTS] channelObj is empty";
+                return;
+            }
+            
+            bool isEnabled = channelObj["communityPointsSettings"].toObject()["isEnabled"].toBool(false);
+            if (!isEnabled) {
+                qInfo() << "[POINTS] not enabled for" << this->getName();
+                this->channelPointsBalanceUpdated.invoke(-1);
+                return;
+            }
+
+            QJsonObject selfParsed = channelObj["self"].toObject();
+            if (!selfParsed.isEmpty())
+            {
+                QJsonObject pointsObj = selfParsed["communityPoints"].toObject();
+                if (pointsObj.contains("balance"))
+                {
+                    int balance = static_cast<int>(pointsObj["balance"].toDouble(0));
+                    qInfo() << "[POINTS] balance =" << balance << "for" << this->getName();
+                    this->channelPointsBalanceUpdated.invoke(balance);
+                }
+            }
+        })
+        .onError([this](const NetworkResult &result) {
+            qInfo() << "[POINTS] ERROR for" << this->getName() << "status:" << result.status().value_or(-1);
+        })
+        .execute();
 }
 
 bool TwitchChannel::isEmpty() const
@@ -1581,6 +2219,12 @@ void TwitchChannel::refreshPubSub()
     auto currentAccount = getApp()->getAccounts()->twitch.getCurrent();
 
     getApp()->getTwitchPubSub()->listenToChannelPointRewards(roomId);
+
+    if (!currentAccount->isAnon())
+    {
+        getApp()->getTwitchPubSub()->listenToUserPointBalance(currentAccount->getUserId());
+        this->refreshChannelPointsBalance();
+    }
 
     if (currentAccount->isAnon())
     {

@@ -12,8 +12,10 @@
 #include "common/UniqueAccess.hpp"
 #include "providers/ffz/FfzBadges.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
+#include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/eventsub/SubscriptionHandle.hpp"
 #include "providers/twitch/TwitchEmotes.hpp"
+#include "providers/twitch/TwitchPinnedMessage.hpp"
 #include "util/QStringHash.hpp"
 #include "util/ThreadGuard.hpp"
 
@@ -338,6 +340,35 @@ public:
 
     pajlada::Signals::NoArgSignal destroyed;
 
+    // Pinned messages
+    pajlada::Signals::NoArgSignal pinnedMessageUpdated;
+    pajlada::Signals::Signal<int> channelPointsBalanceUpdated;
+
+    void refreshChannelPointsBalance();
+    void fetchPinnedMessage();
+    void pinMessage(const QString &messageID);
+    void unpinMessage();
+    const std::optional<TwitchPinnedMessage> &getPinnedMessage() const;
+    
+    void createPoll(const QString &title, const QStringList &choices, int durationSeconds,
+                    int pointsPerVote, std::function<void()> successCallback,
+                    std::function<void(const QString &)> failureCallback);
+    
+    void voteInPoll(const QString &pollId, const QString &choiceId,
+                    std::function<void()> successCallback,
+                    std::function<void(const QString &)> failureCallback);
+                    
+    void getActivePoll(std::function<void(std::optional<HelixPoll>)> successCallback,
+                       std::function<void(const QString &)> failureCallback);
+
+    void terminatePoll(const QString &pollId,
+                       std::function<void()> successCallback,
+                       std::function<void(const QString &)> failureCallback);
+
+    void archivePoll(const QString &pollId,
+                     std::function<void()> successCallback,
+                     std::function<void(const QString &)> failureCallback);
+
     pajlada::Signals::Signal<const QString &> sendWaitUpdate;
 
     // Channel point rewards
@@ -535,7 +566,10 @@ private:
     QObject lifetimeGuard_;
     QTimer chattersListTimer_;
     QTimer threadClearTimer_;
+    QTimer pinnedMessageTimer_;
     QElapsedTimer titleRefreshedTimer_;
+
+    std::optional<TwitchPinnedMessage> pinnedMessage_;
     QElapsedTimer clipCreationTimer_;
     bool isClipCreationInProgress{false};
 

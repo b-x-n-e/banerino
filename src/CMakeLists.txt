@@ -107,6 +107,8 @@ set(SOURCE_FILES
         controllers/commands/builtin/twitch/GetVIPs.hpp
         controllers/commands/builtin/twitch/LowTrust.cpp
         controllers/commands/builtin/twitch/LowTrust.hpp
+        controllers/commands/builtin/twitch/Pin.cpp
+        controllers/commands/builtin/twitch/Pin.hpp
         controllers/commands/builtin/twitch/Poll.cpp
         controllers/commands/builtin/twitch/Poll.hpp
         controllers/commands/builtin/twitch/Prediction.cpp
@@ -766,6 +768,8 @@ set(SOURCE_FILES
         widgets/dialogs/LastRunCrashDialog.hpp
         widgets/dialogs/LoginDialog.cpp
         widgets/dialogs/LoginDialog.hpp
+        widgets/dialogs/PollDialog.cpp
+        widgets/dialogs/PollDialog.hpp
         widgets/dialogs/QualityPopup.cpp
         widgets/dialogs/QualityPopup.hpp
         widgets/dialogs/ReplyThreadPopup.cpp
@@ -812,6 +816,8 @@ set(SOURCE_FILES
 
         widgets/helper/ChannelView.cpp
         widgets/helper/ChannelView.hpp
+        widgets/helper/MessageActionMenu.cpp
+        widgets/helper/MessageActionMenu.hpp
         widgets/helper/CmdDeleteKeyFilter.cpp
         widgets/helper/CmdDeleteKeyFilter.hpp
         widgets/helper/ComboBoxItemDelegate.cpp
@@ -884,6 +890,8 @@ set(SOURCE_FILES
         widgets/settingspages/GeneralPageView.hpp
         widgets/settingspages/TechnorinoPage.cpp
         widgets/settingspages/TechnorinoPage.hpp
+        widgets/settingspages/ThemePage.cpp
+        widgets/settingspages/ThemePage.hpp
         widgets/settingspages/HighlightingPage.cpp
         widgets/settingspages/HighlightingPage.hpp
         widgets/settingspages/IgnoresPage.cpp
@@ -924,6 +932,14 @@ set(SOURCE_FILES
         widgets/splits/SplitInput.hpp
         widgets/splits/SplitOverlay.cpp
         widgets/splits/SplitOverlay.hpp
+        widgets/splits/PinnedMessageWidget.cpp
+        widgets/splits/PinnedMessageWidget.hpp
+        widgets/splits/PredictionBanner.cpp
+        widgets/splits/PredictionBanner.hpp
+        widgets/splits/PollBanner.cpp
+        widgets/splits/PollBanner.hpp
+
+        providers/twitch/TwitchPinnedMessage.hpp
         )
 
 if (APPLE)

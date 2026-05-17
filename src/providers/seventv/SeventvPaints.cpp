@@ -1,6 +1,9 @@
 #include "providers/seventv/SeventvPaints.hpp"
 
 #include "Application.hpp"
+#include "common/QLogging.hpp"
+#include "common/network/NetworkRequest.hpp"
+#include "common/network/NetworkResult.hpp"
 #include "messages/Image.hpp"
 #include "providers/seventv/eventapi/Dispatch.hpp"
 #include "providers/seventv/paints/LinearGradientPaint.hpp"
@@ -12,6 +15,7 @@
 #include "util/PostToThread.hpp"
 #include "util/Variant.hpp"
 
+#include <QJsonDocument>
 #include <QUrlQuery>
 
 namespace {
@@ -265,6 +269,106 @@ void SeventvPaints::clearPaintFromUsers(
             getApp()->getWindows()->invalidateChannelViewBuffers();
         });
     }
+}
+
+
+
+void SeventvPaints::resolveUserPaint(const QString &twitchUserID,
+                                     const QString &twitchUserName)
+{
+    if (twitchUserID.isEmpty() || twitchUserName.isEmpty())
+    {
+        return;
+    }
+
+    // Check if we already have a paint for this user or have looked them up
+    {
+        std::shared_lock lock(this->mutex_);
+        if (this->twitchPaintMap_.contains(twitchUserName.toLower()))
+        {
+            return;
+        }
+    }
+    {
+        std::unique_lock lock(this->lookupMutex_);
+        if (!this->lookedUpUsers_.insert(twitchUserID).second)
+        {
+            return;  // already looked up
+        }
+    }
+
+    // Fetch the user's 7TV profile to get their paint_id
+    QString url = QString("https://7tv.io/v3/users/twitch/%1").arg(twitchUserID);
+    NetworkRequest(url, NetworkRequestType::Get)
+        .timeout(10000)
+        .onSuccess([this, twitchUserName](const NetworkResult &result) {
+            auto json = result.parseJson();
+            auto paintID =
+                json["user"].toObject()["style"].toObject()["paint_id"].toString();
+            if (paintID.isEmpty())
+            {
+                return;  // user has no paint
+            }
+
+            bool needsFetch = false;
+            {
+                std::shared_lock<std::shared_mutex> lock(this->mutex_);
+                needsFetch = !this->knownPaints_.contains(paintID);
+            }
+
+            auto assignPaint = [this, twitchUserName, paintID]() {
+                std::unique_lock<std::shared_mutex> lock(this->mutex_);
+                auto paintIt = this->knownPaints_.find(paintID);
+                if (paintIt == this->knownPaints_.end())
+                {
+                    return;
+                }
+                auto lowerName = twitchUserName.toLower();
+                if (!this->twitchPaintMap_.contains(lowerName))
+                {
+                    this->twitchPaintMap_.emplace(lowerName, paintIt->second);
+                    DebugCount::increase(DebugObject::SeventvPaintAssignments);
+                    lock.unlock();
+                    postToThread([] {
+                        getApp()->getWindows()->invalidateChannelViewBuffers();
+                    });
+                }
+            };
+
+            if (needsFetch)
+            {
+                QJsonObject payload{
+                    {"operationName", "GetCosmetics"},
+                    {"query",
+                     "query GetCosmetics($list: [ObjectID!]) { cosmetics(list: $list) "
+                     "{ paints { id name function color stops { at color } repeat angle "
+                     "shadows { x_offset y_offset radius color } image_url } } }"},
+                    {"variables", QJsonObject{{"list", QJsonArray{paintID}}}},
+                };
+
+                NetworkRequest("https://7tv.io/v3/gql", NetworkRequestType::Post)
+                    .json(payload)
+                    .timeout(10000)
+                    .onSuccess([this, assignPaint](const NetworkResult &result) {
+                        auto json = result.parseJson();
+                        auto paints = json["data"].toObject()["cosmetics"].toObject()["paints"].toArray();
+                        if (!paints.isEmpty())
+                        {
+                            this->addPaint(paints[0].toObject());
+                            assignPaint();
+                        }
+                    })
+                    .execute();
+            }
+            else
+            {
+                assignPaint();
+            }
+        })
+        .onError([](const NetworkResult & /*result*/) {
+            // Silently ignore - user might not have a 7TV account
+        })
+        .execute();
 }
 
 }  // namespace chatterino

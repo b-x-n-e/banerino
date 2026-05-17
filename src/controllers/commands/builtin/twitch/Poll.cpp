@@ -12,6 +12,9 @@
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
+#include "singletons/WindowManager.hpp"
+#include "widgets/dialogs/PollDialog.hpp"
+#include "widgets/Window.hpp"
 
 #include <chrono>
 
@@ -28,6 +31,33 @@ namespace chatterino::commands {
 
 QString createPoll(const CommandContext &ctx)
 {
+    if (ctx.words.length() == 1)
+    {
+        if (ctx.twitchChannel == nullptr)
+        {
+            if (ctx.channel != nullptr)
+            {
+                ctx.channel->addSystemMessage(
+                    "The /poll command only works in Twitch channels");
+            }
+            return "";
+        }
+
+        auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+        if (currentUser->isAnon())
+        {
+            ctx.channel->addSystemMessage(
+                "You must be logged in to create a poll!");
+            return "";
+        }
+
+        auto *dialog = new PollDialog(
+            ctx.twitchChannel, getApp()->getWindows()->getMainWindow().window());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+        return "";
+    }
+
     const auto command = QStringLiteral("/poll");
     const auto usage = QStringLiteral(
         R"(Usage: "/poll --title "<title>" --duration <duration>[time unit] --choice "<choice1>" --choice "<choice2>" [options...]" - Creates a poll for users to vote among the defined options. Title may not exceed 60 characters. There must be between two and five poll choices. Duration must be a positive integer; time unit (optional, default=s) must be one of s, m; maximum duration is 30 minutes. Options: --points <points> to allow spending the specified channel points for each additional vote.)");
@@ -95,76 +125,33 @@ QString endPoll(const CommandContext &ctx)
         return "";
     }
 
-    const auto roomId = ctx.twitchChannel->roomId();
-    getHelix()->getPolls(
-        roomId, {}, 1, {},
-        [channel = ctx.channel, roomId](const auto &result) {
-            if (result.polls.empty())
+    ctx.twitchChannel->getActivePoll(
+        [channel = ctx.channel, tc = ctx.twitchChannel](std::optional<HelixPoll> result) {
+            if (!result.has_value())
             {
                 channel->addSystemMessage("Failed to find any polls");
                 return;
             }
 
-            auto poll = result.polls.front();
+            auto poll = result.value();
             if (poll.status != "ACTIVE")
             {
                 channel->addSystemMessage("Could not find an active poll");
                 return;
             }
 
-            getHelix()->endPoll(
-                roomId, poll.id, false,
-                [channel](const HelixPoll &data) {
-                    // find most popular choice
-                    HelixPollChoice winner = data.choices.front();
-                    int totalVotes = 0;
-                    int winnerCount = 0;
-                    for (const auto &choice : data.choices)
-                    {
-                        totalVotes += choice.votes;
-                        if (choice.votes > winner.votes)
-                        {
-                            winner = choice;
-                            winnerCount = 1;
-                        }
-                        else if (choice.votes == winner.votes)
-                        {
-                            winnerCount++;
-                        }
-                    }
-
-                    if (totalVotes == 0)
-                    {
-                        channel->addSystemMessage(
-                            QString("Poll ended with zero votes: '%1'")
-                                .arg(data.title));
-                        return;
-                    }
-
-                    if (winnerCount > 1)
-                    {
-                        channel->addSystemMessage(
-                            QString("Poll ended in a draw: '%1'")
-                                .arg(data.title));
-                        return;
-                    }
-
-                    const double percent =
-                        100.0 * winner.votes / std::max(totalVotes, 1);
-
+            tc->terminatePoll(
+                poll.id,
+                [channel, poll]() {
                     channel->addSystemMessage(
-                        QString(
-                            "Ended poll: '%1' - '%2' won with %3 votes (%4%)")
-                            .arg(data.title, winner.title,
-                                 QString::number(winner.votes),
-                                 QString::number(percent, 'f', 1)));
+                        QString("Ended poll: '%1'").arg(poll.title));
                 },
-                [channel](const auto &error) {
+                [channel](const QString &error) {
                     channel->addSystemMessage("Failed to end the poll - " +
                                               error);
                 });
         },
-        [channel = ctx.channel](const auto &error) {
+        [channel = ctx.channel](const QString &error) {
             channel->addSystemMessage("Failed to query polls - " + error);
         });
 
@@ -196,35 +183,33 @@ QString cancelPoll(const CommandContext &ctx)
         return "";
     }
 
-    const auto roomId = ctx.twitchChannel->roomId();
-    getHelix()->getPolls(
-        roomId, {}, 1, {},
-        [channel = ctx.channel, roomId](const auto &result) {
-            if (result.polls.empty())
+    ctx.twitchChannel->getActivePoll(
+        [channel = ctx.channel, tc = ctx.twitchChannel](std::optional<HelixPoll> result) {
+            if (!result.has_value())
             {
                 channel->addSystemMessage("Failed to find any polls");
                 return;
             }
 
-            auto poll = result.polls.front();
+            auto poll = result.value();
             if (poll.status != "ACTIVE")
             {
                 channel->addSystemMessage("Could not find an active poll");
                 return;
             }
 
-            getHelix()->endPoll(
-                roomId, poll.id, true,
-                [channel](const HelixPoll &data) {
+            tc->archivePoll(
+                poll.id,
+                [channel, poll]() {
                     channel->addSystemMessage(
-                        QString("Canceled poll: '%1'").arg(data.title));
+                        QString("Canceled poll: '%1'").arg(poll.title));
                 },
-                [channel](const auto &error) {
+                [channel](const QString &error) {
                     channel->addSystemMessage("Failed to cancel the poll - " +
                                               error);
                 });
         },
-        [channel = ctx.channel](const auto &error) {
+        [channel = ctx.channel](const QString &error) {
             channel->addSystemMessage("Failed to query polls - " + error);
         });
 

@@ -30,8 +30,10 @@
 #include <QLabel>
 #include <QLinearGradient>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMimeData>
 #include <QPainter>
+#include <QPainterPath>
 
 #include <algorithm>
 
@@ -918,7 +920,61 @@ void NotebookTab::paintEvent(QPaintEvent *)
             break;
     }
 
-    painter.fillRect(bgRect, tabBackground);
+    painter.setRenderHint(QPainter::Antialiasing);
+    
+    QPainterPath path;
+    int r = 6 * scale; // Radius for rounded corners
+
+    // Start from bottom-left, go up, arc top-left, line to top-right, arc top-right, go down
+    switch (this->tabLocation_)
+    {
+        case NotebookTabLocation::Top:
+            path.moveTo(bgRect.bottomLeft());
+            path.lineTo(bgRect.topLeft() + QPointF(0, r));
+            path.arcTo(bgRect.left(), bgRect.top(), r * 2, r * 2, 180, -90);
+            path.lineTo(bgRect.topRight() - QPointF(r, 0));
+            path.arcTo(bgRect.right() - r * 2, bgRect.top(), r * 2, r * 2, 90, -90);
+            path.lineTo(bgRect.bottomRight());
+            break;
+        case NotebookTabLocation::Bottom:
+            path.moveTo(bgRect.topLeft());
+            path.lineTo(bgRect.bottomLeft() - QPointF(0, r));
+            path.arcTo(bgRect.left(), bgRect.bottom() - r * 2, r * 2, r * 2, 180, 90);
+            path.lineTo(bgRect.bottomRight() - QPointF(r, 0));
+            path.arcTo(bgRect.right() - r * 2, bgRect.bottom() - r * 2, r * 2, r * 2, 270, 90);
+            path.lineTo(bgRect.topRight());
+            break;
+        case NotebookTabLocation::Left:
+            path.moveTo(bgRect.topRight());
+            path.lineTo(bgRect.topLeft() + QPointF(r, 0));
+            path.arcTo(bgRect.left(), bgRect.top(), r * 2, r * 2, 90, 90);
+            path.lineTo(bgRect.bottomLeft() - QPointF(0, r));
+            path.arcTo(bgRect.left(), bgRect.bottom() - r * 2, r * 2, r * 2, 180, 90);
+            path.lineTo(bgRect.bottomRight());
+            break;
+        case NotebookTabLocation::Right:
+            path.moveTo(bgRect.topLeft());
+            path.lineTo(bgRect.topRight() - QPointF(r, 0));
+            path.arcTo(bgRect.right() - r * 2, bgRect.top(), r * 2, r * 2, 90, -90);
+            path.lineTo(bgRect.bottomRight() - QPointF(0, r));
+            path.arcTo(bgRect.right() - r * 2, bgRect.bottom() - r * 2, r * 2, r * 2, 0, -90);
+            path.lineTo(bgRect.bottomLeft());
+            break;
+    }
+    path.closeSubpath();
+
+    painter.setPen(Qt::NoPen);
+    painter.fillPath(path, tabBackground);
+    
+    // Draw a subtle translucent border around EVERY tab so they don't blend into a single blob
+    // This defines the rounded edges clearly even when touching
+    QColor subtleBorder = this->theme->isLightTheme() ? QColor(0, 0, 0, 25) : QColor(255, 255, 255, 15);
+    if (this->selected_) {
+        // Selected tabs get a slightly more pronounced border to pop out (3D overlap effect)
+        subtleBorder = this->theme->isLightTheme() ? QColor(0, 0, 0, 45) : QColor(255, 255, 255, 45);
+    }
+    painter.setPen(QPen(subtleBorder, 1));
+    painter.drawPath(path);
 
     // draw color indicator line
     auto lineThickness = ceil((this->selected_ ? 2.f : 1.f) * scale);

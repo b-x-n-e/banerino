@@ -32,6 +32,7 @@ struct MessageColors {
     QColor alternateBg;
 
     QColor disabled;
+    QColor history;
     QColor selection;
 
     QColor regularText;

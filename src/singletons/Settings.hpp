@@ -255,8 +255,23 @@ public:
     BoolSetting headerUptime = {"/appearance/splitheader/showUptime", false};
     FloatSetting customThemeMultiplier = {"/appearance/customThemeMultiplier",
                                           -0.5f};
-    // BoolSetting useCustomWindowFrame = {"/appearance/useCustomWindowFrame",
-    // false};
+    QStringSetting customAccentColor{"/appearance/customAccentColor", ""};
+    QStringSetting customWindowBackground{"/appearance/customWindowBackground", ""};
+    QStringSetting customLiveButtonColor = {"/appearance/customLiveButtonColor", ""};
+    QStringSetting customChatFieldColor = {"/appearance/customChatFieldColor", ""};
+    QStringSetting customSplitBackground = {"/appearance/customSplitBackground", ""};
+    QStringSetting customSplitHeaderBackground = {"/appearance/customSplitHeaderBackground", ""};
+    QStringSetting customSplitHeaderBorder = {"/appearance/customSplitHeaderBorder", ""};
+    QStringSetting customSplitHeaderText = {"/appearance/customSplitHeaderText", ""};
+    QStringSetting customMessageSeparator = {"/appearance/customMessageSeparator", ""};
+    QStringSetting customScrollbarThumb = {"/appearance/customScrollbarThumb", ""};
+    QStringSetting customScrollbarBackground = {"/appearance/customScrollbarBackground", ""};
+    QStringSetting customMessageBackground = {"/appearance/customMessageBackground", ""};
+    QStringSetting customMessageAlternateBackground = {"/appearance/customMessageAlternateBackground", ""};
+    QStringSetting customTextColor = {"/appearance/customTextColor", ""};
+    QStringSetting customTabDividerLine = {"/appearance/customTabDividerLine", ""};
+    QStringSetting customBackgroundImage = {"/appearance/customBackgroundImage", ""};
+    IntSetting customBackgroundImageOpacity = {"/appearance/customBackgroundImageOpacity", 15};
 
     FloatSetting overlayScaleFactor = {"/appearance/overlay/scaleFactor", 1};
     IntSetting overlayBackgroundOpacity = {
@@ -875,6 +890,12 @@ public:
 #endif
 
     BoolSetting xChatterino7NoHttp2{"/x-chatterino7/no-http2", false};
+
+    /// GQL Auth Token for pinned messages (obtained via device code flow)
+    QStringSetting gqlAuthToken{"/misc/gqlAuthToken", ""};
+
+    /// Message action menu on hover
+    BoolSetting enableMessageActionMenu{"/misc/enableMessageActionMenu", true};
 
 private:
     ChatterinoSetting<std::vector<HighlightPhrase>> highlightedMessagesSetting =

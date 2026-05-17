@@ -5,6 +5,7 @@
 class QLabel;
 class QCheckBox;
 class QComboBox;
+class QPushButton;
 
 namespace chatterino {
 
@@ -24,6 +25,13 @@ public:
 private:
     void initLayout(GeneralPageView &layout);
     void initExtra();
+
+    void updateTokenStatus(QLabel *label);
+    void startDeviceCodeFlow(QPushButton *authBtn, QLabel *statusLabel,
+                             QLabel *tokenStatusLabel);
+    void pollDeviceCode(const QString &deviceCode, const QString &clientId,
+                        int interval, int attempt, QPushButton *authBtn,
+                        QLabel *statusLabel, QLabel *tokenStatusLabel);
 
     QString getFont(const DropdownArgs &args) const;
 
