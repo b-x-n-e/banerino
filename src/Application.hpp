@@ -42,6 +42,7 @@ class Fonts;
 class Toasts;
 class IChatterinoBadges;
 class ChatterinoBadges;
+class HomiesBadges;
 class SeventvPaints;
 class FfzBadges;
 class BttvBadges;
@@ -99,6 +100,7 @@ public:
     virtual PubSub *getTwitchPubSub() = 0;
     virtual ILogging *getChatLogger() = 0;
     virtual IChatterinoBadges *getChatterinoBadges() = 0;
+    virtual HomiesBadges *getHomiesBadges() = 0;
     virtual FfzBadges *getFfzBadges() = 0;
     virtual BttvBadges *getBttvBadges() = 0;
     virtual SeventvBadges *getSeventvBadges() = 0;
@@ -190,6 +192,7 @@ private:
     std::unique_ptr<PubSub> twitchPubSub;
     std::unique_ptr<TwitchBadges> twitchBadges;
     std::unique_ptr<ChatterinoBadges> chatterinoBadges;
+    std::unique_ptr<HomiesBadges> homiesBadges;
     std::unique_ptr<BttvEmotes> bttvEmotes;
     std::unique_ptr<BttvLiveUpdates> bttvLiveUpdates;
     std::unique_ptr<FfzEmotes> ffzEmotes;
@@ -236,6 +239,7 @@ public:
     ITwitchLiveController *getTwitchLiveController() override;
     TwitchBadges *getTwitchBadges() override;
     IChatterinoBadges *getChatterinoBadges() override;
+    HomiesBadges *getHomiesBadges() override;
     ImageUploader *getImageUploader() override;
     SeventvAPI *getSeventvAPI() override;
 #ifdef CHATTERINO_HAVE_PLUGINS

@@ -164,8 +164,11 @@ ThemePage::ThemePage()
 
     view->addTitle("Window & Tabs");
 
-    addThemeColorRow(*view, "Accent Color (Tabs & Indicator)", s.customAccentColor,
+    addThemeColorRow(*view, "Accent Color (Tab Line & Indicators)", s.customAccentColor,
         [themes]() { return themes->accent; }, themeConnections);
+
+    addThemeColorRow(*view, "Selected Tab Background", s.customSelectedTabBackground,
+        [themes]() { return themes->tabs.selected.backgrounds.regular; }, themeConnections);
 
     addThemeColorRow(*view, "Window Background", s.customWindowBackground,
         [themes]() { return themes->window.background; }, themeConnections);
@@ -175,6 +178,15 @@ ThemePage::ThemePage()
 
     addThemeColorRow(*view, "Tab Divider Line", s.customTabDividerLine,
         [themes]() { return themes->tabs.dividerLine; }, themeConnections);
+
+    addThemeColorRow(*view, "Tab Text", s.customTabTextColor,
+        [themes]() { return themes->tabs.regular.text; }, themeConnections);
+
+    addThemeColorRow(*view, "Selected Tab Text", s.customSelectedTabTextColor,
+        [themes]() { return themes->tabs.selected.text; }, themeConnections);
+
+    addThemeColorRow(*view, "Tab Hover Background", s.customTabHoverBackground,
+        [themes]() { return themes->tabs.regular.backgrounds.hover; }, themeConnections);
 
     view->addTitle("Splits & Headers");
 
@@ -234,6 +246,10 @@ ThemePage::ThemePage()
         s.customMessageAlternateBackground = "";
         s.customTextColor = "";
         s.customTabDividerLine = "";
+        s.customTabTextColor = "";
+        s.customSelectedTabTextColor = "";
+        s.customTabHoverBackground = "";
+        s.customSelectedTabBackground = "";
     });
 
     auto *resetLayout = new QHBoxLayout;

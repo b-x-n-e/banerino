@@ -12,6 +12,7 @@
 #include "singletons/Fonts.hpp"
 #include "singletons/Theme.hpp"
 #include "widgets/splits/Split.hpp"
+#include "widgets/buttons/SvgButton.hpp"
 
 #include <QHBoxLayout>
 #include <QPainter>
@@ -51,6 +52,33 @@ PollBanner::PollBanner(Split *parent)
     this->timerLabel_ = new QLabel(this);
     headerLayout->addWidget(this->timerLabel_);
 
+    this->endButton_ = new SvgButton(
+        {
+            .dark = ":/buttons/endPrediction-darkMode.svg",
+            .light = ":/buttons/endPrediction-lightMode.svg",
+        },
+        this,
+        QSize(2, 2));
+    this->endButton_->setToolTip("End Poll early");
+    this->endButton_->setFixedSize(34, 34);
+    this->endButton_->setContentsMargins(0, 2, 0, 0);
+    this->endButton_->setCursor(Qt::PointingHandCursor);
+    this->endButton_->setHidden(true);
+    headerLayout->addWidget(this->endButton_);
+
+    this->cancelButton_ = new SvgButton(
+        {
+            .dark = ":/buttons/trashcan-darkMode.svg",
+            .light = ":/buttons/trashcan-lightMode.svg",
+        },
+        this,
+        QSize(2, 2));
+    this->cancelButton_->setToolTip("Cancel Poll");
+    this->cancelButton_->setFixedSize(26, 26);
+    this->cancelButton_->setCursor(Qt::PointingHandCursor);
+    this->cancelButton_->setHidden(true);
+    headerLayout->addWidget(this->cancelButton_);
+
     layout->addLayout(headerLayout);
 
     // Choices area
@@ -75,6 +103,32 @@ PollBanner::PollBanner(Split *parent)
     // Poll timer - fetches poll data periodically
     QObject::connect(&this->pollTimer_, &QTimer::timeout, [this]() {
         this->fetchPoll();
+    });
+
+    QObject::connect(this->endButton_, &Button::leftClicked, [this]() {
+        if (this->currentChannel_ && this->poll_.has_value()) {
+            auto pollId = this->poll_->id;
+            this->currentChannel_->terminatePoll(
+                pollId,
+                [this]() { this->fetchPoll(); },
+                [this](const QString &error) {
+                    this->currentChannel_->addSystemMessage(
+                        QString("Failed to end poll: %1").arg(error));
+                });
+        }
+    });
+
+    QObject::connect(this->cancelButton_, &Button::leftClicked, [this]() {
+        if (this->currentChannel_ && this->poll_.has_value()) {
+            auto pollId = this->poll_->id;
+            this->currentChannel_->archivePoll(
+                pollId,
+                [this]() { this->fetchPoll(); },
+                [this](const QString &error) {
+                    this->currentChannel_->addSystemMessage(
+                        QString("Failed to cancel poll: %1").arg(error));
+                });
+        }
     });
 
     this->themeChangedEvent();
@@ -174,12 +228,19 @@ void PollBanner::updateDisplay()
 {
     if (!this->poll_.has_value())
     {
+        this->endButton_->hide();
+        this->cancelButton_->hide();
         this->hide();
         this->setFixedHeight(0);
         return;
     }
 
     const auto &poll = this->poll_.value();
+
+    bool isModOrBroadcaster = this->currentChannel_ && (this->currentChannel_->isMod() || this->currentChannel_->isBroadcaster());
+    bool isActive = (poll.status == "ACTIVE");
+    this->endButton_->setVisible(isModOrBroadcaster && isActive);
+    this->cancelButton_->setVisible(isModOrBroadcaster && isActive);
 
     this->titleLabel_->setText(poll.title);
 
@@ -499,6 +560,20 @@ void PollBanner::themeChangedEvent()
         this->titleLabel_->setStyleSheet(
             QString("font-weight: bold; font-size: 13px; color: %1;")
                 .arg(this->theme->messages.textColors.regular.name()));
+    }
+
+    if (this->endButton_)
+    {
+        auto scale = this->scale();
+        this->endButton_->setFixedHeight(int(34 * scale));
+        this->endButton_->setFixedWidth(int(34 * scale));
+    }
+
+    if (this->cancelButton_)
+    {
+        auto scale = this->scale();
+        this->cancelButton_->setFixedHeight(int(26 * scale));
+        this->cancelButton_->setFixedWidth(int(26 * scale));
     }
 
     if (this->poll_.has_value())

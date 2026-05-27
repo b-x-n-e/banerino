@@ -197,6 +197,7 @@ private:
     std::unique_ptr<QTimer> themeReloadTimer_;
     // This will only be populated when auto-reloading themes
     QJsonObject currentThemeJson_;
+    QString lastLoadedImagePath_;
 
     QObject lifetime_;
 

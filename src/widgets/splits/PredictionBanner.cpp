@@ -11,6 +11,7 @@
 #include "providers/twitch/api/Helix.hpp"
 #include "singletons/Theme.hpp"
 #include "widgets/splits/Split.hpp"
+#include "widgets/buttons/SvgButton.hpp"
 
 #include <QHBoxLayout>
 #include <QLineEdit>
@@ -53,6 +54,33 @@ PredictionBanner::PredictionBanner(Split *parent)
 
     this->timerLabel_ = new QLabel(this);
     headerLayout->addWidget(this->timerLabel_);
+
+    this->endButton_ = new SvgButton(
+        {
+            .dark = ":/buttons/endPrediction-darkMode.svg",
+            .light = ":/buttons/endPrediction-lightMode.svg",
+        },
+        this,
+        QSize(2, 2));
+    this->endButton_->setToolTip("Lock Prediction");
+    this->endButton_->setFixedSize(34, 34);
+    this->endButton_->setContentsMargins(0, 2, 0, 0);
+    this->endButton_->setCursor(Qt::PointingHandCursor);
+    this->endButton_->setHidden(true);
+    headerLayout->addWidget(this->endButton_);
+
+    this->cancelButton_ = new SvgButton(
+        {
+            .dark = ":/buttons/trashcan-darkMode.svg",
+            .light = ":/buttons/trashcan-lightMode.svg",
+        },
+        this,
+        QSize(2, 2));
+    this->cancelButton_->setToolTip("Cancel Prediction");
+    this->cancelButton_->setFixedSize(26, 26);
+    this->cancelButton_->setCursor(Qt::PointingHandCursor);
+    this->cancelButton_->setHidden(true);
+    headerLayout->addWidget(this->cancelButton_);
 
     layout->addLayout(headerLayout);
 
@@ -113,6 +141,36 @@ PredictionBanner::PredictionBanner(Split *parent)
         this->fetchPrediction();
     });
 
+    QObject::connect(this->endButton_, &Button::leftClicked, [this]() {
+        if (this->currentChannel_ && this->prediction_.has_value()) {
+            auto predictionId = this->prediction_->id;
+            this->currentChannel_->lockPredictionEvent(
+                predictionId,
+                [this]() {
+                    this->fetchPrediction();
+                },
+                [this](const QString &error) {
+                    this->currentChannel_->addSystemMessage(
+                        QString("Failed to lock prediction: %1").arg(error));
+                });
+        }
+    });
+
+    QObject::connect(this->cancelButton_, &Button::leftClicked, [this]() {
+        if (this->currentChannel_ && this->prediction_.has_value()) {
+            auto predictionId = this->prediction_->id;
+            this->currentChannel_->cancelPredictionEvent(
+                predictionId,
+                [this]() {
+                    this->fetchPrediction();
+                },
+                [this](const QString &error) {
+                    this->currentChannel_->addSystemMessage(
+                        QString("Failed to cancel prediction: %1").arg(error));
+                });
+        }
+    });
+
     this->themeChangedEvent();
 }
 
@@ -132,11 +190,30 @@ void PredictionBanner::setChannel(ChannelPtr channel)
 
     this->currentChannel_ = tc;
 
+    if (tc->isBroadcaster())
+    {
+        this->pointsLabel_->setText("");
+        this->pointsLabel_->hide();
+    }
+    else
+    {
+        this->pointsLabel_->show();
+    }
+
     this->signalHolder_.managedConnect(
         this->currentChannel_->channelPointsBalanceUpdated,
         [this](int balance) {
-            this->pointsLabel_->setText(
-                QString("🪙 %1").arg(formatCount(balance)));
+            if (this->currentChannel_ && this->currentChannel_->isBroadcaster())
+            {
+                this->pointsLabel_->setText("");
+                this->pointsLabel_->hide();
+            }
+            else
+            {
+                this->pointsLabel_->setText(
+                    QString("🪙 %1").arg(formatCount(balance)));
+                this->pointsLabel_->show();
+            }
         });
 
     // Fetch immediately, then start polling
@@ -158,10 +235,9 @@ void PredictionBanner::fetchPrediction()
         return;
     }
 
-    getHelix()->getPredictions(
-        roomId, {}, 1, "",
-        [this](const HelixPredictions &result) {
-            if (result.predictions.empty())
+    this->currentChannel_->getPredictions(
+        [this](const std::vector<HelixPrediction> &predictions) {
+            if (predictions.empty())
             {
                 // No predictions - hide
                 if (this->prediction_.has_value())
@@ -175,7 +251,7 @@ void PredictionBanner::fetchPrediction()
                 return;
             }
 
-            const auto &hp = result.predictions.front();
+            const auto &hp = predictions.front();
 
             // Only show ACTIVE or LOCKED predictions
             if (hp.status != "ACTIVE" && hp.status != "LOCKED")
@@ -255,12 +331,18 @@ void PredictionBanner::updateDisplay()
 {
     if (!this->prediction_.has_value())
     {
+        this->endButton_->hide();
+        this->cancelButton_->hide();
         this->hide();
         this->setFixedHeight(0);
         return;
     }
 
     const auto &pred = this->prediction_.value();
+
+    bool isModOrBroadcaster = this->currentChannel_ && (this->currentChannel_->isMod() || this->currentChannel_->isBroadcaster());
+    this->endButton_->setVisible(isModOrBroadcaster && pred.status == "ACTIVE");
+    this->cancelButton_->setVisible(isModOrBroadcaster && (pred.status == "ACTIVE" || pred.status == "LOCKED"));
 
     // Title
     this->titleLabel_->setText(pred.title);
@@ -513,13 +595,20 @@ void PredictionBanner::placeBet(const QString &outcomeId, int points)
         return;
     }
 
-    // Placing bets requires GQL (not supported via Helix for viewers).
-    // For now, show a system message indicating the bet would be placed.
-    // Full GQL betting can be added later with the auth token from pinning.
-    this->currentChannel_->addSystemMessage(
-        QString("Prediction voting from Banerino is display-only for now. "
-                "Vote on Twitch to place %1 points on this outcome.")
-            .arg(points));
+    auto eventId = this->prediction_->id;
+
+    this->currentChannel_->makePrediction(
+        eventId, outcomeId, points,
+        [this, points]() {
+            this->currentChannel_->addSystemMessage(
+                QString("Successfully placed %1 points bet on prediction.").arg(points));
+            this->fetchPrediction();
+            this->currentChannel_->refreshChannelPointsBalance();
+        },
+        [this](const QString &error) {
+            this->currentChannel_->addSystemMessage(
+                QString("Failed to place prediction bet: %1").arg(error));
+        });
 }
 
 void PredictionBanner::startPolling()
@@ -574,6 +663,20 @@ void PredictionBanner::themeChangedEvent()
         this->titleLabel_->setStyleSheet(
             QString("font-weight: bold; font-size: 13px; color: %1;")
                 .arg(this->theme->messages.textColors.regular.name()));
+    }
+
+    if (this->endButton_)
+    {
+        auto scale = this->scale();
+        this->endButton_->setFixedHeight(int(34 * scale));
+        this->endButton_->setFixedWidth(int(34 * scale));
+    }
+
+    if (this->cancelButton_)
+    {
+        auto scale = this->scale();
+        this->cancelButton_->setFixedHeight(int(26 * scale));
+        this->cancelButton_->setFixedWidth(int(26 * scale));
     }
 
     if (this->prediction_.has_value())

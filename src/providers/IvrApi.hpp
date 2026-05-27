@@ -111,7 +111,8 @@ public:
     // https://api.ivr.fi/v2/docs/static/index.html#/Twitch/get_twitch_modvip__channel_
     void getModVip(QString channelName,
                    ResultCallback<IvrModVip> resultCallback,
-                   IvrFailureCallback failureCallback);
+                   IvrFailureCallback failureCallback,
+                   const QObject *caller = nullptr);
 
     static void initialize();
 

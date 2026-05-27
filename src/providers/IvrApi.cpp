@@ -58,11 +58,12 @@ void IvrApi::getFounders(QString channelName,
 
 void IvrApi::getModVip(QString channelName,
                        ResultCallback<IvrModVip> successCallback,
-                       IvrFailureCallback failureCallback)
+                       IvrFailureCallback failureCallback,
+                       const QObject *caller)
 {
     assert(!channelName.isEmpty());
 
-    this->makeRequest(QString("twitch/modvip/%1").arg(channelName), {})
+    auto req = this->makeRequest(QString("twitch/modvip/%1").arg(channelName), {})
         .onSuccess([successCallback, failureCallback](auto result) {
             auto root = result.parseJson();
 
@@ -73,8 +74,16 @@ void IvrApi::getModVip(QString channelName,
                 << "Failed IVR API Call!" << result.formatError()
                 << QString(result.getData());
             failureCallback();
-        })
-        .execute();
+        });
+
+    if (caller)
+    {
+        std::move(req).caller(caller).execute();
+    }
+    else
+    {
+        std::move(req).execute();
+    }
 }
 
 void IvrApi::getUserRoles(QString userName,

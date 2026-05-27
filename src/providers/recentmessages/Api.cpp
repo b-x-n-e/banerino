@@ -10,6 +10,8 @@
 #include "common/QLogging.hpp"
 #include "providers/recentmessages/Impl.hpp"
 #include "util/PostToThread.hpp"
+#include <QTimer>
+#include <functional>
 
 namespace {
 
@@ -59,37 +61,94 @@ void load(
                 auto root = result.parseJson();
                 auto parsedMessages = parseRecentMessages(root);
 
-                // build the Communi messages into chatterino messages
-                auto builtMessages =
-                    buildRecentMessages(parsedMessages, shared.get());
+                // Use weak pointer for the async loop to safely handle deletion/parting of channel
+                auto weak = std::weak_ptr<Channel>(shared);
 
-                postToThread(
-                    [shared = std::move(shared), root = std::move(root),
-                     messages = std::move(builtMessages), onLoaded]() mutable {
-                        assert(!isAppAboutToQuit());
+                struct ParseState {
+                    std::vector<Communi::IrcMessage *> parsedMessages;
+                    std::vector<MessagePtr> builtMessages;
+                    size_t index = 0;
+                    QJsonObject root;
+                };
 
+                auto state = std::make_shared<ParseState>();
+                state->parsedMessages = std::move(parsedMessages);
+                state->root = std::move(root);
+
+                auto processChunk = std::make_shared<std::function<void()>>();
+                *processChunk = [state, weak, onLoaded, processChunk]() {
+                    if (isAppAboutToQuit())
+                    {
+                        for (auto *msg : state->parsedMessages)
+                        {
+                            msg->deleteLater();
+                        }
+                        return;
+                    }
+
+                    auto sharedChannel = weak.lock();
+                    if (!sharedChannel)
+                    {
+                        for (auto *msg : state->parsedMessages)
+                        {
+                            msg->deleteLater();
+                        }
+                        return;
+                    }
+
+                    // Process messages in chunks of 50 to prevent freezing the GUI thread
+                    size_t chunkSize = 50;
+                    size_t end = std::min(state->index + chunkSize, state->parsedMessages.size());
+
+                    std::vector<Communi::IrcMessage *> chunk(
+                        state->parsedMessages.begin() + state->index,
+                        state->parsedMessages.begin() + end
+                    );
+
+                    auto chunkBuilt = buildRecentMessages(chunk, sharedChannel.get());
+
+                    state->builtMessages.insert(
+                        state->builtMessages.end(),
+                        std::make_move_iterator(chunkBuilt.begin()),
+                        std::make_move_iterator(chunkBuilt.end())
+                    );
+
+                    state->index = end;
+
+                    if (state->index < state->parsedMessages.size())
+                    {
+                        QTimer::singleShot(0, [processChunk]() {
+                            (*processChunk)();
+                        });
+                    }
+                    else
+                    {
                         // Notify user about a possible gap in logs if it returned some messages
                         // but isn't currently joined to a channel
                         const auto errorCode =
-                            root.value("error_code").toString();
+                            state->root.value("error_code").toString();
                         if (!errorCode.isEmpty())
                         {
                             qCDebug(LOG)
                                 << QString("Got error from API: error_code=%1, "
                                            "channel=%2")
-                                       .arg(errorCode, shared->getName());
+                                       .arg(errorCode, sharedChannel->getName());
                             if (errorCode == "channel_not_joined" &&
-                                !messages.empty())
+                                !state->builtMessages.empty())
                             {
-                                shared->addSystemMessage(
+                                sharedChannel->addSystemMessage(
                                     "Message history service recovering, there "
                                     "may "
                                     "be gaps in the message history.");
                             }
                         }
 
-                        onLoaded(messages);
-                    });
+                        onLoaded(state->builtMessages);
+                    }
+                };
+
+                // Start the asynchronous chunked build loop
+                (*processChunk)();
             })
             .onError([channelPtr, onError](const NetworkResult &result) {
                 auto shared = channelPtr.lock();

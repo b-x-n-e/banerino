@@ -575,6 +575,7 @@ CommandController::CommandController(const Paths &paths)
     this->registerCommand("/endpoll", &commands::endPoll);
 
     this->registerCommand("/prediction", &commands::createPrediction);
+    this->registerCommand("/showprediction", &commands::showPrediction);
     this->registerCommand("/lockprediction", &commands::lockPrediction);
     this->registerCommand("/cancelprediction", &commands::cancelPrediction);
     this->registerCommand("/completeprediction", &commands::completePrediction);

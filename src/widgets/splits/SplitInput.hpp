@@ -168,10 +168,15 @@ protected:
         ResizingTextEdit *textEdit;
         QLabel *textEditLength;
         QLabel *channelPointsLabel;
+        SvgButton *channelPointsIcon;
         LabelButton *sendButton;
         QLabel *sendWaitStatus;
         SvgButton *emoteButton;
+        SvgButton *pollButton;
+        SvgButton *predictButton;
     } ui_;
+
+    void updateModeratorButtons();
 
     MessagePtr replyTarget_ = nullptr;
     bool enableInlineReplying_;

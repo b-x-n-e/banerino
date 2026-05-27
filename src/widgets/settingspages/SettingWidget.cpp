@@ -7,6 +7,7 @@
 #include "common/QLogging.hpp"
 #include "singletons/NativeMessaging.hpp"
 #include "singletons/Settings.hpp"  // IWYU pragma: keep
+#include "singletons/Theme.hpp"
 #include "util/QMagicEnumTagged.hpp"
 #include "util/RapidJsonSerializeQString.hpp"  // IWYU pragma: keep
 #include "widgets/dialogs/ColorPickerDialog.hpp"
@@ -23,6 +24,8 @@
 #include <QPixmap>
 #include <QSvgRenderer>
 #include <QSvgWidget>
+#include <QPushButton>
+#include <QGraphicsOpacityEffect>
 #include <Qt>
 
 #include <algorithm>
@@ -423,6 +426,45 @@ SettingWidget *SettingWidget::colorButton(const QString &label,
     widget->hLayout->addWidget(widget->tooltipIcon);
     widget->hLayout->addStretch(1);
     widget->hLayout->addWidget(colorButton);
+
+    auto *resetButton = new QPushButton();
+    resetButton->setFlat(true);
+    resetButton->setFixedWidth(30);
+    resetButton->setCursor(Qt::PointingHandCursor);
+    resetButton->setToolTip("Reset to Default");
+    resetButton->setIconSize(QSize(14, 14));
+
+    auto updateResetIcon = [resetButton]() {
+        bool isLight = getApp()->getThemes()->isLightTheme();
+        QString iconPath = isLight ? ":/buttons/reloadDark.svg" : ":/buttons/reloadLight.svg";
+        resetButton->setIcon(QIcon(iconPath));
+    };
+    updateResetIcon();
+
+    widget->managedConnections.managedConnect(
+        getApp()->getThemes()->updated,
+        [updateResetIcon]() {
+            updateResetIcon();
+        });
+
+    auto *opacityEffect = new QGraphicsOpacityEffect(resetButton);
+    resetButton->setGraphicsEffect(opacityEffect);
+
+    auto updateResetState = [resetButton, opacityEffect, &setting]() {
+        bool custom = !setting.getValue().isEmpty();
+        resetButton->setEnabled(custom);
+        opacityEffect->setOpacity(custom ? 1.0 : 0.25);
+    };
+    updateResetState();
+    QObject::connect(resetButton, &QPushButton::clicked, [&setting]() {
+        setting.setValue("");
+    });
+    setting.connect(
+        [updateResetState](const QString &, const auto &) {
+            updateResetState();
+        },
+        widget->managedConnections);
+    widget->hLayout->addWidget(resetButton);
 
     // update when setting changes
     setting.connect(

@@ -35,6 +35,7 @@
 #include "singletons/StreamerMode.hpp"
 #include "singletons/Theme.hpp"
 #include "singletons/WindowManager.hpp"
+#include "providers/seventv/SeventvPaints.hpp"
 #include "util/Clipboard.hpp"
 #include "util/DistanceBetweenPoints.hpp"
 #include "util/Helpers.hpp"
@@ -1621,14 +1622,20 @@ void ChannelView::paintEvent(QPaintEvent *event)
     // draw custom background image
     auto *theme = getTheme();
     if (!theme->background.image.isNull()) {
+        qint64 currentKey = theme->background.image.cacheKey();
+        QSize currentSize = this->size();
+        if (currentKey != this->lastThemeBgCacheKey_ || currentSize != this->lastThemeBgSize_) {
+            this->lastThemeBgCacheKey_ = currentKey;
+            this->lastThemeBgSize_ = currentSize;
+            this->cachedBgImage_ = theme->background.image.scaled(
+                currentSize, Qt::KeepAspectRatioByExpanding, Qt::FastTransformation);
+        }
+
         painter.setOpacity(theme->background.opacity);
-        // keep aspect ratio, expand to cover the channel view completely
-        QPixmap scaled = theme->background.image.scaled(this->size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        
         // draw it centered
-        int x = (this->width() - scaled.width()) / 2;
-        int y = (this->height() - scaled.height()) / 2;
-        painter.drawPixmap(x, y, scaled);
+        int x = (this->width() - this->cachedBgImage_.width()) / 2;
+        int y = (this->height() - this->cachedBgImage_.height()) / 2;
+        painter.drawPixmap(x, y, this->cachedBgImage_);
 
         // Reset opacity for the rest of the painting
         painter.setOpacity(1.0);
@@ -2155,6 +2162,37 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
     if (element->getTooltip().isEmpty() ||
         (isLinkValid && isNotEmote && !getSettings()->linkInfoTooltip))
     {
+        // Check if hovering over a username with a 7TV paint
+        auto link = hoverLayoutElement->getLink();
+        if ((link.type == Link::UserInfo ||
+             link.type == Link::UserWhisper) &&
+            getSettings()->displaySevenTVPaints)
+        {
+            auto paint = getApp()->getSeventvPaints()->getPaint(
+                link.value.toLower(), false);
+            if (paint && !paint->name.isEmpty())
+            {
+                this->tooltipWidget_->setOne(TooltipEntry{
+                    .image = nullptr,
+                    .text = "7TV Paint: " + paint->name,
+                });
+                this->tooltipWidget_->moveTo(
+                    event->globalPosition().toPoint() + QPoint(16, 16),
+                    widgets::BoundsChecking::CursorPosition);
+                this->tooltipWidget_->setWordWrap(false);
+                this->tooltipWidget_->show();
+                // Still need to handle cursor below
+                if (isLinkValid)
+                {
+                    this->setCursor(Qt::PointingHandCursor);
+                }
+                else
+                {
+                    this->setCursor(Qt::ArrowCursor);
+                }
+                return;
+            }
+        }
         this->tooltipWidget_->hide();
     }
     else
@@ -2264,9 +2302,28 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
         }
         else
         {
+            auto tooltipText = element->getTooltip();
+
+            // If hovering over a username, append 7TV paint name
+            auto link = hoverLayoutElement->getLink();
+            if (link.type == Link::UserInfo ||
+                link.type == Link::UserWhisper)
+            {
+                auto paint = getApp()->getSeventvPaints()->getPaint(
+                    link.value.toLower(), false);
+                if (paint && !paint->name.isEmpty())
+                {
+                    if (!tooltipText.isEmpty())
+                    {
+                        tooltipText += "\n";
+                    }
+                    tooltipText += "7TV Paint: " + paint->name;
+                }
+            }
+
             this->tooltipWidget_->setOne(TooltipEntry{
                 .image = nullptr,
-                .text = element->getTooltip(),
+                .text = tooltipText,
             });
         }
 

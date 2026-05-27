@@ -355,6 +355,33 @@ Theme::Theme(const Paths &paths)
                          }
                      });
 
+    // Real-time custom color setting connections
+    auto updateTheme = [this](const auto &) {
+        this->update();
+    };
+    auto &s = *getSettings();
+    s.customAccentColor.connect(updateTheme, false);
+    s.customWindowBackground.connect(updateTheme, false);
+    s.customLiveButtonColor.connect(updateTheme, false);
+    s.customChatFieldColor.connect(updateTheme, false);
+    s.customSplitBackground.connect(updateTheme, false);
+    s.customSplitHeaderBackground.connect(updateTheme, false);
+    s.customSplitHeaderBorder.connect(updateTheme, false);
+    s.customSplitHeaderText.connect(updateTheme, false);
+    s.customMessageSeparator.connect(updateTheme, false);
+    s.customScrollbarThumb.connect(updateTheme, false);
+    s.customScrollbarBackground.connect(updateTheme, false);
+    s.customMessageBackground.connect(updateTheme, false);
+    s.customMessageAlternateBackground.connect(updateTheme, false);
+    s.customTextColor.connect(updateTheme, false);
+    s.customTabDividerLine.connect(updateTheme, false);
+    s.customTabTextColor.connect(updateTheme, false);
+    s.customSelectedTabTextColor.connect(updateTheme, false);
+    s.customTabHoverBackground.connect(updateTheme, false);
+    s.customSelectedTabBackground.connect(updateTheme, false);
+    s.customBackgroundImage.connect(updateTheme, false);
+    s.customBackgroundImageOpacity.connect(updateTheme, false);
+
     this->update();
 }
 
@@ -550,12 +577,16 @@ void Theme::parseFrom(const QJsonObject &root, bool isCustomTheme)
     // if an image is provided, preventing the chat background from interfering.
     QString bgPath = s.customBackgroundImage.getValue();
     if (!bgPath.isEmpty() && QFile::exists(bgPath)) {
-        this->background.image.load(bgPath);
+        if (this->lastLoadedImagePath_ != bgPath) {
+            this->background.image.load(bgPath);
+            this->lastLoadedImagePath_ = bgPath;
+        }
         // Make the chat backgrounds transparent so the image shows through
         this->messages.backgrounds.regular = Qt::transparent;
         this->messages.backgrounds.alternate = Qt::transparent;
     } else {
         this->background.image = QPixmap();
+        this->lastLoadedImagePath_ = QString();
     }
     this->background.opacity = qBound(0, s.customBackgroundImageOpacity.getValue(), 100) / 100.0f;
 
@@ -563,9 +594,20 @@ void Theme::parseFrom(const QJsonObject &root, bool isCustomTheme)
         QColor accent(s.customAccentColor.getValue());
         if (accent.isValid()) {
             this->accent = accent;
-            this->tabs.selected.backgrounds.regular = accent;
-            this->tabs.selected.backgrounds.hover = accent;
-            this->tabs.selected.backgrounds.unfocused = accent;
+            this->tabs.selected.line.regular = accent;
+            this->tabs.selected.line.hover = accent;
+            this->tabs.selected.line.unfocused = accent;
+            this->tabs.highlighted.line.regular = accent;
+            this->tabs.highlighted.line.hover = accent;
+            this->tabs.highlighted.line.unfocused = accent;
+        }
+    }
+    if (!s.customSelectedTabBackground.getValue().isEmpty()) {
+        QColor bg(s.customSelectedTabBackground.getValue());
+        if (bg.isValid()) {
+            this->tabs.selected.backgrounds.regular = bg;
+            this->tabs.selected.backgrounds.hover = bg;
+            this->tabs.selected.backgrounds.unfocused = bg;
         }
     }
     if (!s.customWindowBackground.getValue().isEmpty()) {
@@ -631,6 +673,29 @@ void Theme::parseFrom(const QJsonObject &root, bool isCustomTheme)
     if (!s.customTabDividerLine.getValue().isEmpty()) {
         QColor c(s.customTabDividerLine.getValue());
         if (c.isValid()) this->tabs.dividerLine = c;
+    }
+    if (!s.customTabTextColor.getValue().isEmpty()) {
+        QColor c(s.customTabTextColor.getValue());
+        if (c.isValid()) {
+            this->tabs.regular.text = c;
+            this->tabs.newMessage.text = c;
+            this->tabs.highlighted.text = c;
+        }
+    }
+    if (!s.customSelectedTabTextColor.getValue().isEmpty()) {
+        QColor c(s.customSelectedTabTextColor.getValue());
+        if (c.isValid()) {
+            this->tabs.selected.text = c;
+        }
+    }
+    if (!s.customTabHoverBackground.getValue().isEmpty()) {
+        QColor c(s.customTabHoverBackground.getValue());
+        if (c.isValid()) {
+            this->tabs.regular.backgrounds.hover = c;
+            this->tabs.newMessage.backgrounds.hover = c;
+            this->tabs.highlighted.backgrounds.hover = c;
+            this->tabs.selected.backgrounds.hover = c;
+        }
     }
 
     this->splits.input.styleSheet = uR"(

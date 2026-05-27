@@ -16,6 +16,10 @@
 #include "singletons/Settings.hpp"
 #include "Application.hpp"
 #include "singletons/WindowManager.hpp"
+#include "providers/bttv/BttvEmotes.hpp"
+#include "providers/ffz/FfzEmotes.hpp"
+#include "providers/seventv/SeventvEmotes.hpp"
+#include "providers/seventv/SeventvPersonalEmotes.hpp"
 
 #include "widgets/dialogs/UserInfoPopup.hpp"
 #include "widgets/TooltipWidget.hpp"
@@ -244,10 +248,67 @@ void PinnedMessageWidget::updatePin()
         usernameText->setLink(Link(Link::UserInfo, pin->senderLogin));
         builder.append(std::unique_ptr<MessageElement>(usernameText));
 
-        // Parse text word-by-word to detect URLs and make them clickable
+        // Parse text word-by-word to detect emotes and URLs
+        auto *tc = this->currentChannel_;
         auto words = pin->text.split(' ', Qt::SkipEmptyParts);
         for (const auto &word : words)
         {
+            // Check for 7TV/BTTV/FFZ emotes
+            EmotePtr emote;
+            EmoteName emoteName{word};
+            std::optional<EmotePtr> found;
+
+            if (tc)
+            {
+                found = getApp()->getSeventvPersonalEmotes()
+                            ->getEmoteForTwitchUser(pin->senderId, emoteName);
+                if (found && *found)
+                    emote = *found;
+                if (!emote)
+                {
+                    found = tc->ffzEmote(emoteName);
+                    if (found)
+                        emote = *found;
+                }
+                if (!emote)
+                {
+                    found = tc->bttvEmote(emoteName);
+                    if (found)
+                        emote = *found;
+                }
+                if (!emote)
+                {
+                    found = tc->seventvEmote(emoteName);
+                    if (found)
+                        emote = *found;
+                }
+            }
+            if (!emote)
+            {
+                found = getApp()->getFfzEmotes()->emote(emoteName);
+                if (found)
+                    emote = *found;
+            }
+            if (!emote)
+            {
+                found = getApp()->getBttvEmotes()->emote(emoteName);
+                if (found)
+                    emote = *found;
+            }
+            if (!emote)
+            {
+                found = getApp()->getSeventvEmotes()->globalEmote(emoteName);
+                if (found)
+                    emote = *found;
+            }
+
+            if (emote)
+            {
+                builder.emplace<EmoteElement>(emote,
+                                              MessageElementFlag::Emote);
+                continue;
+            }
+
             auto parsed = linkparser::parse(word);
             if (parsed)
             {

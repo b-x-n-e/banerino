@@ -403,6 +403,8 @@ set(SOURCE_FILES
 
         providers/chatterino/ChatterinoBadges.cpp
         providers/chatterino/ChatterinoBadges.hpp
+        providers/chatterino/HomiesBadges.cpp
+        providers/chatterino/HomiesBadges.hpp
 
         providers/colors/ColorProvider.cpp
         providers/colors/ColorProvider.hpp
@@ -770,6 +772,10 @@ set(SOURCE_FILES
         widgets/dialogs/LoginDialog.hpp
         widgets/dialogs/PollDialog.cpp
         widgets/dialogs/PollDialog.hpp
+        widgets/dialogs/ManagePredictionDialog.cpp
+        widgets/dialogs/ManagePredictionDialog.hpp
+        widgets/dialogs/PredictionDialog.cpp
+        widgets/dialogs/PredictionDialog.hpp
         widgets/dialogs/QualityPopup.cpp
         widgets/dialogs/QualityPopup.hpp
         widgets/dialogs/ReplyThreadPopup.cpp

@@ -473,6 +473,10 @@ private:
 
     /// Slot for the LinkInfo::stateChanged signal.
     void pendingLinkInfoStateChanged();
+
+    QPixmap cachedBgImage_;
+    qint64 lastThemeBgCacheKey_ = -1;
+    QSize lastThemeBgSize_;
 };
 
 }  // namespace chatterino

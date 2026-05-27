@@ -369,6 +369,29 @@ public:
                      std::function<void()> successCallback,
                      std::function<void(const QString &)> failureCallback);
 
+    void getPredictions(std::function<void(const std::vector<HelixPrediction> &)> successCallback,
+                        std::function<void(const QString &)> failureCallback);
+
+    void makePrediction(const QString &eventId, const QString &outcomeId, int points,
+                        std::function<void()> successCallback,
+                        std::function<void(const QString &)> failureCallback);
+
+    void createPredictionEvent(const QString &title, const QStringList &outcomes, int durationSeconds,
+                               std::function<void()> successCallback,
+                               std::function<void(const QString &)> failureCallback);
+
+    void lockPredictionEvent(const QString &predictionId,
+                             std::function<void()> successCallback,
+                             std::function<void(const QString &)> failureCallback);
+
+    void cancelPredictionEvent(const QString &predictionId,
+                               std::function<void()> successCallback,
+                               std::function<void(const QString &)> failureCallback);
+
+    void resolvePredictionEvent(const QString &predictionId, const QString &outcomeId,
+                                std::function<void()> successCallback,
+                                std::function<void(const QString &)> failureCallback);
+
     pajlada::Signals::Signal<const QString &> sendWaitUpdate;
 
     // Channel point rewards

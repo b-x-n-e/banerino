@@ -1110,6 +1110,10 @@ void GeneralPage::initLayout(GeneralPageView &layout)
         ->setTooltip("e.g. Chatterino Supporter/Contributor/Developer")
         ->addTo(layout);
 
+    SettingWidget::checkbox("Homies", s.showBadgesHomies)
+        ->setTooltip("e.g. Homies Developer/Supporter/Founder/Mod/Bot")
+        ->addTo(layout);
+
     SettingWidget::checkbox("FrankerFaceZ", s.showBadgesFfz)
         ->addKeywords({"ffz"})
         ->setTooltip("e.g. Bot, FrankerFaceZ supporter, FrankerFaceZ developer")

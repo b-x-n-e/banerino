@@ -270,6 +270,10 @@ public:
     QStringSetting customMessageAlternateBackground = {"/appearance/customMessageAlternateBackground", ""};
     QStringSetting customTextColor = {"/appearance/customTextColor", ""};
     QStringSetting customTabDividerLine = {"/appearance/customTabDividerLine", ""};
+    QStringSetting customTabTextColor = {"/appearance/customTabTextColor", ""};
+    QStringSetting customSelectedTabTextColor = {"/appearance/customSelectedTabTextColor", ""};
+    QStringSetting customTabHoverBackground = {"/appearance/customTabHoverBackground", ""};
+    QStringSetting customSelectedTabBackground = {"/appearance/customSelectedTabBackground", ""};
     QStringSetting customBackgroundImage = {"/appearance/customBackgroundImage", ""};
     IntSetting customBackgroundImageOpacity = {"/appearance/customBackgroundImageOpacity", 15};
 
@@ -300,6 +304,7 @@ public:
                                           true};
     BoolSetting showBadgesVanity = {"/appearance/badges/vanity", true};
     BoolSetting showBadgesChatterino = {"/appearance/badges/chatterino", true};
+    BoolSetting showBadgesHomies = {"/appearance/badges/homies", true};
     BoolSetting showBadgesFfz = {"/appearance/badges/ffz", true};
     BoolSetting useCustomFfzModeratorBadges = {
         "/appearance/badges/useCustomFfzModeratorBadges", true};

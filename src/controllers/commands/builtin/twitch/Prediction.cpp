@@ -13,6 +13,11 @@
 #include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchChannel.hpp"
 #include "util/Helpers.hpp"
+#include "common/enums/MessageContext.hpp"
+#include "messages/Link.hpp"
+#include "messages/Message.hpp"
+#include "messages/MessageBuilder.hpp"
+#include "messages/MessageElement.hpp"
 
 #include <QCommandLineParser>
 #include <QProcess>
@@ -28,11 +33,66 @@ constexpr auto MAX_PREDICT_DURATION = std::chrono::seconds(1800);
 
 }  // namespace
 
+#include "widgets/dialogs/PredictionDialog.hpp"
+#include "singletons/WindowManager.hpp"
+#include "widgets/Window.hpp"
+
+#include "widgets/dialogs/ManagePredictionDialog.hpp"
+
 namespace chatterino::commands {
+
+QString showPrediction(const CommandContext &ctx)
+{
+    if (ctx.twitchChannel == nullptr)
+    {
+        if (ctx.channel != nullptr)
+            ctx.channel->addSystemMessage("The /showprediction command only works in Twitch channels");
+        return "";
+    }
+
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+    if (currentUser->isAnon())
+    {
+        ctx.channel->addSystemMessage("You must be logged in to manage a prediction!");
+        return "";
+    }
+
+    auto *dialog = new ManagePredictionDialog(
+        ctx.twitchChannel, getApp()->getWindows()->getMainWindow().window());
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->show();
+
+    return "";
+}
 
 QString createPrediction(const CommandContext &ctx)
 {
     const auto command = QStringLiteral("/prediction");
+    if (ctx.words.size() == 1)
+    {
+        if (ctx.twitchChannel == nullptr)
+        {
+            if (ctx.channel != nullptr)
+            {
+                ctx.channel->addSystemMessage("The /prediction command only works in Twitch channels");
+            }
+            return "";
+        }
+
+        auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
+        if (currentUser->isAnon())
+        {
+            ctx.channel->addSystemMessage("You must be logged in to create a prediction!");
+            return "";
+        }
+
+        auto *dialog = new PredictionDialog(
+            ctx.twitchChannel, getApp()->getWindows()->getMainWindow().window());
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+        return "";
+    }
+
     const auto usage = QStringLiteral(
         R"(Usage: "/prediction --title "<title>" --choice "<choice1>" --choice "<choice2>" --duration <duration>[time unit]" - Creates a prediction for users to guess among the defined options. Title may not exceed 45 characters. There must be between two and ten choices. Duration must be a positive integer; time unit (optional, default=s) must be one of s, m; maximum duration is 30 minutes.)");
     const auto action = parseUserParticipationAction(
@@ -61,8 +121,8 @@ QString createPrediction(const CommandContext &ctx)
     }
 
     const auto &data = action.value();
-    getHelix()->createPrediction(
-        data.broadcasterID, data.title, data.choices, data.duration,
+    ctx.twitchChannel->createPredictionEvent(
+        data.title, data.choices, data.duration.count(),
         [channel = ctx.channel, data] {
             channel->addSystemMessage(
                 QString("Created prediction: '%1'").arg(data.title));
@@ -102,7 +162,7 @@ QString lockPrediction(const CommandContext &ctx)
     const auto roomId = ctx.twitchChannel->roomId();
     getHelix()->getPredictions(
         roomId, {}, 1, {},
-        [channel = ctx.channel, roomId](const auto &result) {
+        [channel = ctx.channel, twitchChannel = ctx.twitchChannel, roomId](const auto &result) {
             if (result.predictions.empty())
             {
                 channel->addSystemMessage("Failed to find any predictions");
@@ -125,12 +185,12 @@ QString lockPrediction(const CommandContext &ctx)
                 return;
             }
 
-            getHelix()->endPrediction(
-                roomId, prediction.id, false, {},
-                [channel](const HelixPrediction &data) {
+            twitchChannel->lockPredictionEvent(
+                prediction.id,
+                [channel, prediction]() {
                     int totalPoints = 0;
                     int numUsers = 0;
-                    for (const auto &outcome : data.outcomes)
+                    for (const auto &outcome : prediction.outcomes)
                     {
                         totalPoints += outcome.channelPoints;
                         numUsers += outcome.users;
@@ -140,7 +200,7 @@ QString lockPrediction(const CommandContext &ctx)
                         QString("Locked prediction with %1 points wagered by "
                                 "%2 users: '%3'")
                             .arg(localizeNumbers(totalPoints),
-                                 localizeNumbers(numUsers), data.title));
+                                 localizeNumbers(numUsers), prediction.title));
                 },
                 [channel](const auto &error) {
                     channel->addSystemMessage("Failed to lock prediction - " +
@@ -182,7 +242,7 @@ QString cancelPrediction(const CommandContext &ctx)
     const auto roomId = ctx.twitchChannel->roomId();
     getHelix()->getPredictions(
         roomId, {}, 1, {},
-        [channel = ctx.channel, roomId](const auto &result) {
+        [channel = ctx.channel, twitchChannel = ctx.twitchChannel, roomId](const auto &result) {
             if (result.predictions.empty())
             {
                 channel->addSystemMessage("Failed to find any predictions");
@@ -196,12 +256,12 @@ QString cancelPrediction(const CommandContext &ctx)
                 return;
             }
 
-            getHelix()->endPrediction(
-                roomId, prediction.id, true, {},
-                [channel](const HelixPrediction &data) {
+            twitchChannel->cancelPredictionEvent(
+                prediction.id,
+                [channel, prediction]() {
                     int totalPoints = 0;
                     int numUsers = 0;
-                    for (const auto &outcome : data.outcomes)
+                    for (const auto &outcome : prediction.outcomes)
                     {
                         totalPoints += outcome.channelPoints;
                         numUsers += outcome.users;
@@ -211,7 +271,7 @@ QString cancelPrediction(const CommandContext &ctx)
                         QString("Refunded %1 points to %2 users for "
                                 "prediction: '%3'")
                             .arg(localizeNumbers(totalPoints),
-                                 localizeNumbers(numUsers), data.title));
+                                 localizeNumbers(numUsers), prediction.title));
                 },
                 [channel](const auto &error) {
                     channel->addSystemMessage("Failed to cancel prediction - " +
@@ -301,7 +361,7 @@ QString completePrediction(const CommandContext &ctx)
     const auto roomId = ctx.twitchChannel->roomId();
     getHelix()->getPredictions(
         roomId, {}, 1, {},
-        [channel = ctx.channel, roomId, hasIndex, targetIndex,
+        [channel = ctx.channel, twitchChannel = ctx.twitchChannel, roomId, hasIndex, targetIndex,
          targetName](const auto &queryResult) {
             if (queryResult.predictions.empty())
             {
@@ -364,15 +424,15 @@ QString completePrediction(const CommandContext &ctx)
             }
 
             // resolve prediction
-            getHelix()->endPrediction(
-                roomId, prediction.id, false, winnerId,
-                [channel](const HelixPrediction &result) {
+            twitchChannel->resolvePredictionEvent(
+                prediction.id, winnerId,
+                [channel, prediction, winnerId]() {
                     int totalPoints = 0;
-                    HelixPredictionOutcome winner = result.outcomes.front();
-                    for (const auto &outcome : result.outcomes)
+                    HelixPredictionOutcome winner = prediction.outcomes.front();
+                    for (const auto &outcome : prediction.outcomes)
                     {
                         totalPoints += outcome.channelPoints;
-                        if (outcome.id == result.winningOutcomeID)
+                        if (outcome.id == winnerId)
                         {
                             winner = outcome;
                         }
@@ -381,7 +441,7 @@ QString completePrediction(const CommandContext &ctx)
                     channel->addSystemMessage(
                         QString("Completed prediction: %1 - '%2' won %3 points "
                                 "(%4 profit) to be distributed among %5 users")
-                            .arg(result.title, winner.title,
+                            .arg(prediction.title, winner.title,
                                  localizeNumbers(totalPoints),
                                  localizeNumbers(totalPoints -
                                                  winner.channelPoints),

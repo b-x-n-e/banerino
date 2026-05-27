@@ -74,8 +74,9 @@ void SvgButton::resizeEvent(QResizeEvent *e)
 void SvgButton::paintContent(QPainter &painter)
 {
     QSize actualPadding = this->scale() * this->padding_;
-    QPoint topLeft{actualPadding.width(), actualPadding.height()};
-    QSize contentSize = this->size() - 2 * actualPadding;
+    QRect rect = this->contentsRect();
+    QPoint topLeft = rect.topLeft() + QPoint(actualPadding.width(), actualPadding.height());
+    QSize contentSize = rect.size() - 2 * actualPadding;
     auto bounds = QRectF{topLeft, contentSize};
     this->svg_->render(&painter, bounds);
 

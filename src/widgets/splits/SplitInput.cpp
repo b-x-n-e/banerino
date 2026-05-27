@@ -36,6 +36,9 @@
 #include "widgets/splits/InputHighlighter.hpp"
 #include "widgets/splits/Split.hpp"
 #include "widgets/splits/SplitContainer.hpp"
+#include "widgets/dialogs/PollDialog.hpp"
+#include "widgets/dialogs/PredictionDialog.hpp"
+#include "widgets/Window.hpp"
 
 #include <QActionGroup>
 #include <QCompleter>
@@ -209,31 +212,69 @@ void SplitInput::initLayout()
     auto box = hboxLayout.emplace<QVBoxLayout>().withoutMargin();
     box->setSpacing(0);
     {
-        auto hbox = box.emplace<QHBoxLayout>().withoutMargin();
+        auto topHbox = box.emplace<QHBoxLayout>().withoutMargin();
+        topHbox->setSpacing(1);
+
         this->ui_.textEditLength = new QLabel();
         // Right-align the labels contents
-        this->ui_.textEditLength->setAlignment(Qt::AlignRight);
-        hbox->addWidget(this->ui_.textEditLength);
+        this->ui_.textEditLength->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        topHbox->addWidget(this->ui_.textEditLength);
+
+        this->ui_.channelPointsIcon = new SvgButton(
+            {
+                .dark = ":/buttons/channelPoints.svg",
+                .light = ":/buttons/channelPoints.svg",
+            },
+            nullptr, QSize{0, 0});
+        this->ui_.channelPointsIcon->setEnabled(false);
+        this->ui_.channelPointsIcon->setToolTip("Channel Points");
+        this->ui_.channelPointsIcon->setHidden(true);
+        this->ui_.channelPointsIcon->setCursor(Qt::ArrowCursor);
+        topHbox->addWidget(this->ui_.channelPointsIcon);
 
         this->ui_.channelPointsLabel = new QLabel();
-        this->ui_.channelPointsLabel->setAlignment(Qt::AlignRight);
-        this->ui_.channelPointsLabel->setStyleSheet("color: #00d27c; font-weight: bold; margin-right: 4px;");
+        this->ui_.channelPointsLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        this->ui_.channelPointsLabel->setStyleSheet("color: #9147ff; font-weight: bold; font-size: 11px;");
         this->ui_.channelPointsLabel->setHidden(true);
         this->ui_.channelPointsLabel->setToolTip("Channel Points Balance");
-        hbox->addWidget(this->ui_.channelPointsLabel);
+        topHbox->addWidget(this->ui_.channelPointsLabel);
 
         this->ui_.sendWaitStatus = new QLabel();
-        this->ui_.sendWaitStatus->setAlignment(Qt::AlignRight);
+        this->ui_.sendWaitStatus->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         this->ui_.sendWaitStatus->setHidden(true);
-        hbox->addWidget(this->ui_.sendWaitStatus);
+        topHbox->addWidget(this->ui_.sendWaitStatus);
+
+        auto bottomHbox = box.emplace<QHBoxLayout>().withoutMargin();
+        bottomHbox->setSpacing(1);
+        bottomHbox->addStretch(1);
+
+        this->ui_.pollButton = new SvgButton(
+            {
+                .dark = ":/buttons/poll-darkMode.svg",
+                .light = ":/buttons/poll-lightMode.svg",
+            },
+            nullptr, QSize{2, 2});
+        this->ui_.pollButton->setToolTip("Create a Poll");
+        this->ui_.pollButton->setHidden(true);
+        bottomHbox->addWidget(this->ui_.pollButton);
+
+        this->ui_.predictButton = new SvgButton(
+            {
+                .dark = ":/buttons/predict-darkMode.svg",
+                .light = ":/buttons/predict-lightMode.svg",
+            },
+            nullptr, QSize{2, 2});
+        this->ui_.predictButton->setToolTip("Create a Prediction");
+        this->ui_.predictButton->setHidden(true);
+        bottomHbox->addWidget(this->ui_.predictButton);
 
         this->ui_.emoteButton = new SvgButton(
             {
                 .dark = ":/buttons/emote.svg",
                 .light = ":/buttons/emoteDark.svg",
             },
-            nullptr, QSize{6, 3});
-        box->addWidget(this->ui_.emoteButton, 0, Qt::AlignRight);
+            nullptr, QSize{4, 3});
+        bottomHbox->addWidget(this->ui_.emoteButton);
     }
 
     // ---- misc
@@ -254,6 +295,30 @@ void SplitInput::initLayout()
     // open emote popup
     QObject::connect(this->ui_.emoteButton, &Button::leftClicked, [this] {
         this->openEmotePopup();
+    });
+
+    // open poll popup
+    QObject::connect(this->ui_.pollButton, &Button::leftClicked, [this] {
+        auto selected = this->split_->getSelectedChannel();
+        if (auto *tc = dynamic_cast<TwitchChannel *>(selected.get()))
+        {
+            auto *dialog = new PollDialog(
+                tc, getApp()->getWindows()->getMainWindow().window());
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->show();
+        }
+    });
+
+    // open predict popup
+    QObject::connect(this->ui_.predictButton, &Button::leftClicked, [this] {
+        auto selected = this->split_->getSelectedChannel();
+        if (auto *tc = dynamic_cast<TwitchChannel *>(selected.get()))
+        {
+            auto *dialog = new PredictionDialog(
+                tc, getApp()->getWindows()->getMainWindow().window());
+            dialog->setAttribute(Qt::WA_DeleteOnClose);
+            dialog->show();
+        }
     });
 
     // clear input and remove reply thread
@@ -358,7 +423,19 @@ void SplitInput::updateEmoteButton()
 
     this->ui_.emoteButton->setFixedHeight(int(18 * scale));
     // Make button slightly wider so it's easier to click
-    this->ui_.emoteButton->setFixedWidth(int(24 * scale));
+    this->ui_.emoteButton->setFixedWidth(int(20 * scale));
+
+    this->ui_.pollButton->setFixedHeight(int(18 * scale));
+    this->ui_.pollButton->setFixedWidth(int(20 * scale));
+
+    this->ui_.predictButton->setFixedHeight(int(18 * scale));
+    this->ui_.predictButton->setFixedWidth(int(20 * scale));
+
+    if (this->ui_.channelPointsIcon)
+    {
+        this->ui_.channelPointsIcon->setFixedHeight(int(14 * scale));
+        this->ui_.channelPointsIcon->setFixedWidth(int(16 * scale));
+    }
 }
 
 void SplitInput::updateCancelReplyButton()
@@ -927,11 +1004,6 @@ void SplitInput::updateCompletionPopup()
     bool showEmoteCompletion = getSettings()->emoteCompletionWithColon;
     bool showUsernameCompletion =
         tc != nullptr && getSettings()->showUsernameCompletionMenu;
-    if (!showEmoteCompletion && !showUsernameCompletion)
-    {
-        this->hideCompletionPopup();
-        return;
-    }
 
     // check if in completion prefix
     auto &edit = *this->ui_.textEdit;
@@ -978,6 +1050,13 @@ void SplitInput::updateCompletionPopup()
             {
                 this->hideCompletionPopup();
             }
+            return;
+        }
+
+        if ((text[i] == '/' || text[i] == '.') && i == 0)
+        {
+            this->showCompletionPopup(text.mid(i, position - i + 1),
+                                      CompletionKind::Command);
             return;
         }
     }
@@ -1041,6 +1120,11 @@ void SplitInput::insertCompletionText(const QString &input_) const
                 formatUserMention(input_, edit.isFirstWord(),
                                   getSettings()->mentionUsersWithComma);
             input = "@" + userMention + " ";
+            done = true;
+        }
+        else if (text[i] == '/' || text[i] == '.')
+        {
+            input = text[i] + input_ + " ";
             done = true;
         }
 
@@ -1553,8 +1637,11 @@ void SplitInput::updateChannel()
     this->ui_.textEdit->setCompleter(new QCompleter(selected->completionModel));
     this->inputHighlighter->setChannel(selected);
 
-    // Hide channel points label by default
+    // Hide channel points label and mod buttons by default
     this->ui_.channelPointsLabel->setHidden(true);
+    this->ui_.channelPointsIcon->setHidden(true);
+    this->ui_.pollButton->setVisible(false);
+    this->ui_.predictButton->setVisible(false);
     
     if (auto *tc = dynamic_cast<TwitchChannel *>(selected.get()))
     {
@@ -1562,6 +1649,7 @@ void SplitInput::updateChannel()
             tc->channelPointsBalanceUpdated, [this](int balance) {
                 if (balance < 0) {
                     this->ui_.channelPointsLabel->setHidden(true);
+                    this->ui_.channelPointsIcon->setHidden(true);
                     return;
                 }
                 
@@ -1573,13 +1661,35 @@ void SplitInput::updateChannel()
                 } else {
                     formatted = QString::number(balance);
                 }
-                this->ui_.channelPointsLabel->setText(QString("<img src=':/buttons/channelPoints.svg' width='14' height='14' align='middle'> <span style='color: #9147ff; font-weight: bold; font-size: 11px;'>%1</span>").arg(formatted));
-                this->ui_.channelPointsLabel->setStyleSheet("padding-right: 4px;");
+                this->ui_.channelPointsLabel->setText(formatted);
                 this->ui_.channelPointsLabel->setHidden(false);
+                this->ui_.channelPointsIcon->setHidden(false);
+            });
+
+        this->channelConnections_.managedConnect(
+            tc->userStateChanged, [this] {
+                this->updateModeratorButtons();
             });
             
         // Trigger a refresh if we're joining
         tc->refreshChannelPointsBalance();
+        this->updateModeratorButtons();
+    }
+}
+
+void SplitInput::updateModeratorButtons()
+{
+    auto selected = this->split_->getSelectedChannel();
+    if (auto *tc = dynamic_cast<TwitchChannel *>(selected.get()))
+    {
+        bool isModOrBroadcaster = tc->isMod() || tc->isBroadcaster();
+        this->ui_.pollButton->setVisible(isModOrBroadcaster);
+        this->ui_.predictButton->setVisible(isModOrBroadcaster);
+    }
+    else
+    {
+        this->ui_.pollButton->setVisible(false);
+        this->ui_.predictButton->setVisible(false);
     }
 }
 

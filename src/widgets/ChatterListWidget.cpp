@@ -7,6 +7,7 @@
 #include "Application.hpp"
 #include "controllers/accounts/AccountController.hpp"
 #include "controllers/hotkeys/HotkeyController.hpp"
+#include "providers/IvrApi.hpp"
 #include "providers/twitch/api/Helix.hpp"
 #include "providers/twitch/TwitchAccount.hpp"  // IWYU pragma: keep
 #include "providers/twitch/TwitchChannel.hpp"
@@ -147,6 +148,8 @@ QString formatChattersError(HelixGetChattersError error, const QString &message)
 
 }  // namespace
 
+#include <QPointer>
+
 ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
                                      QWidget *parent)
     : BaseWindow({}, parent)
@@ -159,10 +162,10 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
     auto *dockVbox = new QVBoxLayout();
     auto *searchBar = new QLineEdit(this);
 
-    auto *chattersList = new QListWidget();
-    auto *resultList = new QListWidget();
+    auto *chattersList = new QListWidget(this);
+    auto *resultList = new QListWidget(this);
 
-    auto *loadingLabel = new QLabel("Loading...");
+    auto *loadingLabel = new QLabel("Loading...", this);
     searchBar->setPlaceholderText("Search User...");
 
     auto formatListItemText = [](const QString &text) {
@@ -218,11 +221,40 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
         resultList->show();
     };
 
-    auto loadChatters = [=](auto modList, auto vipList, bool isBroadcaster) {
+    QPointer<ChatterListWidget> self(this);
+    auto weakChannel = weakOf<Channel>(const_cast<TwitchChannel *>(twitchChannel));
+
+    auto loadChatters = [self, weakChannel, chattersList, loadingLabel,
+                         performListSearch, formatListItemText,
+                         addUserList, addLabel](auto modList, auto vipList, bool isBroadcaster) {
+        auto channel = weakChannel.lock();
+        if (!self || !channel)
+        {
+            return;
+        }
+        auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+        if (!twitchChannel)
+        {
+            return;
+        }
+
         getHelix()->getChatters(
             twitchChannel->roomId(),
             getApp()->getAccounts()->twitch.getCurrent()->getUserId(), 50000,
-            [=](const auto &chatters) {
+            [self, weakChannel, modList, vipList, isBroadcaster, chattersList,
+             loadingLabel, performListSearch, formatListItemText,
+             addUserList, addLabel](const auto &chatters) {
+                auto channel = weakChannel.lock();
+                if (!self || !channel)
+                {
+                    return;
+                }
+                auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+                if (!twitchChannel)
+                {
+                    return;
+                }
+
                 auto broadcaster = twitchChannel->getName().toLower();
                 QStringList chatterList;
                 QStringList modChatters;
@@ -237,7 +269,7 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
                     {
                         addedBroadcaster = true;
                         addLabel("Broadcaster");
-                        chattersList->addItem(broadcaster);
+                        chattersList->addItem(formatListItemText(broadcaster));
                         chattersList->addItem(new QListWidgetItem());
                         continue;
                     }
@@ -284,8 +316,11 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
                 loadingLabel->hide();
                 performListSearch();
             },
-            [chattersList, formatListItemText](auto error,
-                                               const auto &message) {
+            [self, chattersList, formatListItemText](auto error, const auto &message) {
+                if (!self)
+                {
+                    return;
+                }
                 auto errorMessage = formatChattersError(error, message);
                 chattersList->addItem(formatListItemText(errorMessage));
             });
@@ -300,7 +335,20 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
         // Add moderators
         getHelix()->getModerators(
             twitchChannel->roomId(), 1000,
-            [=](const auto &mods) {
+            [self, weakChannel, chattersList, loadingLabel, performListSearch,
+             formatListItemText,
+             loadChatters](const auto &mods) {
+                auto channel = weakChannel.lock();
+                if (!self || !channel)
+                {
+                    return;
+                }
+                auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+                if (!twitchChannel)
+                {
+                    return;
+                }
+
                 QSet<QString> modList;
                 for (const auto &mod : mods)
                 {
@@ -310,7 +358,19 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
                 // Add vips
                 getHelix()->getChannelVIPs(
                     twitchChannel->roomId(),
-                    [=](const auto &vips) {
+                    [self, weakChannel, modList, loadChatters, chattersList,
+                     formatListItemText](const auto &vips) {
+                        auto channel = weakChannel.lock();
+                        if (!self || !channel)
+                        {
+                            return;
+                        }
+                        auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+                        if (!twitchChannel)
+                        {
+                            return;
+                        }
+
                         QSet<QString> vipList;
                         for (const auto &vip : vips)
                         {
@@ -320,33 +380,190 @@ ChatterListWidget::ChatterListWidget(const TwitchChannel *twitchChannel,
                         // Add chatters
                         loadChatters(modList, vipList, true);
                     },
-                    [chattersList, formatListItemText](auto error,
-                                                       const auto &message) {
+                    [self, chattersList, formatListItemText](auto error, const auto &message) {
+                        if (!self)
+                        {
+                            return;
+                        }
                         auto errorMessage = formatVIPListError(error, message);
                         chattersList->addItem(formatListItemText(errorMessage));
                     });
             },
-            [chattersList, formatListItemText](auto error,
-                                               const auto &message) {
+            [self, chattersList, formatListItemText](auto error, const auto &message) {
+                if (!self)
+                {
+                    return;
+                }
                 auto errorMessage = formatModsError(error, message);
                 chattersList->addItem(formatListItemText(errorMessage));
             });
     }
     else if (twitchChannel->hasModRights())
     {
-        QSet<QString> modList;
-        QSet<QString> vipList;
-        loadChatters(modList, vipList, false);
+        // Mods can get chatters from Helix but can't get mod/VIP lists
+        // Use IvrApi (public) for mod/VIP categorization
+        getIvr()->getModVip(
+            twitchChannel->getName(),
+            [self, weakChannel, loadChatters](const auto &modVipResult) {
+                auto channel = weakChannel.lock();
+                if (!self || !channel)
+                {
+                    return;
+                }
+
+                QSet<QString> modList;
+                for (const auto &mod : modVipResult.mods)
+                {
+                    auto obj = mod.toObject();
+                    modList.insert(
+                        obj.value("login").toString().toLower());
+                }
+
+                QSet<QString> vipList;
+                for (const auto &vip : modVipResult.vips)
+                {
+                    auto obj = vip.toObject();
+                    vipList.insert(
+                        obj.value("login").toString().toLower());
+                }
+
+                loadChatters(modList, vipList, true);
+            },
+            [self, loadChatters]() {
+                if (!self)
+                {
+                    return;
+                }
+                // IvrApi failed, fall back without mod/VIP categorization
+                QSet<QString> modList;
+                QSet<QString> vipList;
+                loadChatters(modList, vipList, false);
+            },
+            this);
     }
     else
     {
-        chattersList->addItem(
-            formatListItemText("Due to Twitch restrictions, this feature is "
-                               "only \navailable for moderators."));
-        chattersList->addItem(
-            formatListItemText("If you would like to see the Chatter list, you "
-                               "must \nuse the Twitch website."));
-        loadingLabel->hide();
+        // For non-mods: use IvrApi (public) for mod/VIP lists
+        // and locally tracked chatters from IRC JOIN/PART messages
+        getIvr()->getModVip(
+            twitchChannel->getName(),
+            [self, weakChannel, chattersList, loadingLabel, performListSearch,
+             formatListItemText, addUserList, addLabel,
+             loadChatters](const auto &modVipResult) {
+                auto channel = weakChannel.lock();
+                if (!self || !channel)
+                {
+                    return;
+                }
+                auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+                if (!twitchChannel)
+                {
+                    return;
+                }
+
+                QSet<QString> modList;
+                for (const auto &mod : modVipResult.mods)
+                {
+                    auto obj = mod.toObject();
+                    modList.insert(
+                        obj.value("login").toString().toLower());
+                }
+
+                QSet<QString> vipList;
+                for (const auto &vip : modVipResult.vips)
+                {
+                    auto obj = vip.toObject();
+                    vipList.insert(
+                        obj.value("login").toString().toLower());
+                }
+
+                // Get locally tracked chatters
+                auto allChatters = twitchChannel->accessChatters()->all();
+                auto broadcaster = twitchChannel->getName().toLower();
+
+                QStringList chatterList;
+                QStringList modChatters;
+                QStringList vipChatters;
+
+                bool addedBroadcaster = false;
+                for (const auto &[lowerName, displayName] : allChatters)
+                {
+                    if (!addedBroadcaster && lowerName == broadcaster)
+                    {
+                        addedBroadcaster = true;
+                        addLabel("Broadcaster");
+                        chattersList->addItem(
+                            formatListItemText(displayName));
+                        chattersList->addItem(new QListWidgetItem());
+                        continue;
+                    }
+
+                    if (modList.contains(lowerName))
+                    {
+                        modChatters.append(displayName);
+                        continue;
+                    }
+
+                    if (vipList.contains(lowerName))
+                    {
+                        vipChatters.append(displayName);
+                        continue;
+                    }
+
+                    chatterList.append(displayName);
+                }
+
+                modChatters.sort(Qt::CaseInsensitive);
+                vipChatters.sort(Qt::CaseInsensitive);
+                chatterList.sort(Qt::CaseInsensitive);
+
+                addUserList(modChatters, QString("Moderators"));
+                addUserList(vipChatters, QString("VIPs"));
+                addUserList(chatterList, QString("Chatters"));
+
+                loadingLabel->hide();
+                performListSearch();
+            },
+            [self, weakChannel, chattersList, addUserList, addLabel,
+             formatListItemText, loadingLabel, performListSearch]() {
+                auto channel = weakChannel.lock();
+                if (!self || !channel)
+                {
+                    return;
+                }
+                auto *twitchChannel = dynamic_cast<const TwitchChannel *>(channel.get());
+                if (!twitchChannel)
+                {
+                    return;
+                }
+
+                // IvrApi failed, fall back to just local chatters
+                auto allChatters = twitchChannel->accessChatters()->all();
+                auto broadcaster = twitchChannel->getName().toLower();
+
+                QStringList chatterList;
+                bool addedBroadcaster = false;
+                for (const auto &[lowerName, displayName] : allChatters)
+                {
+                    if (!addedBroadcaster && lowerName == broadcaster)
+                    {
+                        addedBroadcaster = true;
+                        addLabel("Broadcaster");
+                        chattersList->addItem(
+                            formatListItemText(displayName));
+                        chattersList->addItem(new QListWidgetItem());
+                        continue;
+                    }
+                    chatterList.append(displayName);
+                }
+
+                chatterList.sort(Qt::CaseInsensitive);
+                addUserList(chatterList, QString("Chatters"));
+
+                loadingLabel->hide();
+                performListSearch();
+            },
+            this);
     }
 
     this->setMinimumWidth(300);

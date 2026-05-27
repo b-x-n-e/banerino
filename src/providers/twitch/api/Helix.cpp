@@ -3494,8 +3494,11 @@ void Helix::createPrediction(const QString broadcasterID, const QString title,
     payload.insert("prediction_window", static_cast<int>(duration.count()));
     payload.insert("outcomes", outcomeArray);
 
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem("broadcaster_id", broadcasterID);
+
     // Execute API call
-    this->makePost("predictions", {})
+    this->makePost("predictions", urlQuery)
         .json(payload)
         .onSuccess([successCallback](const NetworkResult &result) {
             if (result.status() != 200)
@@ -3604,7 +3607,10 @@ void Helix::endPrediction(const QString broadcasterID, const QString id,
         payload.insert("winning_outcome_id", winningOutcomeID);
     }
 
-    this->makePatch("predictions", {})
+    QUrlQuery urlQuery;
+    urlQuery.addQueryItem("broadcaster_id", broadcasterID);
+
+    this->makePatch("predictions", urlQuery)
         .json(payload)
         .onSuccess([successCallback](const NetworkResult &result) {
             if (result.status() != 200)

@@ -26,6 +26,7 @@ class Channel;
 using ChannelPtr = std::shared_ptr<Channel>;
 class TwitchChannel;
 class Split;
+class SvgButton;
 
 class PollBanner : public BaseWidget
 {
@@ -60,6 +61,8 @@ private:
     QLabel *titleLabel_ = nullptr;
     QLabel *statusLabel_ = nullptr;
     QLabel *timerLabel_ = nullptr;
+    SvgButton *endButton_ = nullptr;
+    SvgButton *cancelButton_ = nullptr;
 
     // Outcome widgets
     struct ChoiceWidget {

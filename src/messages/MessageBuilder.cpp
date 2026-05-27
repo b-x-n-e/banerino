@@ -25,6 +25,7 @@
 #include "providers/bttv/BttvBadges.hpp"
 #include "providers/bttv/BttvEmotes.hpp"
 #include "providers/chatterino/ChatterinoBadges.hpp"
+#include "providers/chatterino/HomiesBadges.hpp"
 #include "providers/colors/ColorProvider.hpp"
 #include "providers/emoji/Emojis.hpp"
 #include "providers/ffz/FfzBadges.hpp"
@@ -1784,6 +1785,7 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
     builder.appendTwitchBadges(tags, twitchChannel);
 
     builder.appendChatterinoBadges(userID);
+    builder.appendHomiesBadges(userID);
     builder.appendFfzBadges(twitchChannel, userID);
     builder.appendBttvBadges(userID);
     builder.appendSeventvBadges(userID);
@@ -2752,6 +2754,19 @@ void MessageBuilder::appendChatterinoBadges(const QString &userID)
 
         /// e.g. "chatterino:Chatterino Top donator"
         this->message().externalBadges.emplace_back((*badge)->name.string);
+    }
+}
+
+void MessageBuilder::appendHomiesBadges(const QString &userID)
+{
+    if (getSettings()->showBadgesHomies)
+    {
+        for (const auto &badge : getApp()->getHomiesBadges()->getBadges({userID}))
+        {
+            this->emplace<BadgeElement>(badge,
+                                        MessageElementFlag::BadgeChatterino);
+            this->message().externalBadges.emplace_back(badge->name.string);
+        }
     }
 }
 
